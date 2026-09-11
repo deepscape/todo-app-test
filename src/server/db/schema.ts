@@ -8,6 +8,7 @@ import {
   timestamp,
   index,
 } from 'drizzle-orm/pg-core';
+import type { TicketStatus, TicketPriority } from '@/shared/types';
 
 export const tickets = pgTable(
   'tickets',
@@ -15,8 +16,14 @@ export const tickets = pgTable(
     id: serial('id').primaryKey(),
     title: varchar('title', { length: 200 }).notNull(),
     description: text('description'),
-    status: varchar('status', { length: 20 }).notNull().default('BACKLOG'),
-    priority: varchar('priority', { length: 10 }).notNull().default('MEDIUM'),
+    status: varchar('status', { length: 20 })
+      .notNull()
+      .default('BACKLOG')
+      .$type<TicketStatus>(),
+    priority: varchar('priority', { length: 10 })
+      .notNull()
+      .default('MEDIUM')
+      .$type<TicketPriority>(),
     position: integer('position').notNull().default(1),
     plannedStartDate: date('planned_start_date', { mode: 'string' }),
     dueDate: date('due_date', { mode: 'string' }),

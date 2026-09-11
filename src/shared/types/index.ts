@@ -36,13 +36,6 @@ export interface Ticket {
   updatedAt: Date;
 }
 
-// --- API 요청 타입 ---
-
-// POST /api/tickets
-export interface CreateTicketInput {
-  title: string;
-  description?: string;
-  priority?: TicketPriority;
-  plannedStartDate?: string; // YYYY-MM-DD
-  dueDate?: string; // YYYY-MM-DD
-}
+// API 요청 타입(CreateTicketInput 등)은 src/shared/validations/ticket.ts 의
+// Zod 스키마에서 z.infer 로 도출한다 (SSOT). 검증 규칙과 타입이 분리되어
+// 따로 갱신되는 것을 방지하기 위함 — docs/TRD.md §7.
