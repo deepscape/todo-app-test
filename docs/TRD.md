@@ -82,7 +82,7 @@ Next.js App Router 기반으로, 프론트엔드와 백엔드를 **디렉토리 
 | Next.js API Routes | 15.x | REST API 엔드포인트 | 서버리스 함수로 실행, 사용하지 않는 API에 비용 없음 |
 | Drizzle ORM | 0.38.x | DB 쿼리, 스키마 관리 | TypeScript 네이티브, 코드 생성 불필요, Vercel Postgres 공식 지원 |
 | Drizzle Kit | 0.30.x | 마이그레이션 관리 | Drizzle ORM 공식 마이그레이션 도구 |
-| @vercel/postgres | latest | Vercel Postgres 연결 드라이버 | 서버리스 환경 커넥션 풀 자동 관리 |
+| postgres (postgres-js) | 3.x | PostgreSQL 연결 드라이버 | Vercel Postgres(Neon)와 로컬 PostgreSQL 모두 지원 (§4.1 참고) |
 | Zod | 3.x | 요청 데이터 검증 | 프론트/백엔드에서 동일한 검증 스키마 공유 |
 
 ### 2.3 개발 도구
@@ -208,13 +208,18 @@ tika/
 
 ```typescript
 // src/server/db/index.ts
-import { drizzle } from 'drizzle-orm/vercel-postgres';
-import { sql } from '@vercel/postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from './schema';
 
-export const db = drizzle(sql);
+const client = postgres(process.env.POSTGRES_URL!);
+
+export const db = drizzle(client, { schema });
 ```
 
-`@vercel/postgres` 패키지가 서버리스 환경에서의 커넥션 풀을 자동으로 관리한다.
+프로덕션(Vercel Postgres/Neon)과 로컬 개발용 PostgreSQL을 모두 지원하기 위해
+`postgres`(postgres-js) 드라이버를 사용한다. `@vercel/postgres`의 `sql` 싱글톤은
+Neon 전용 커넥션 문자열만 허용해 로컬/비-Neon PostgreSQL과 호환되지 않는다.
 
 ### 4.2 마이그레이션 전략
 
