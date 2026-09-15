@@ -76,3 +76,17 @@ export const updateTicketSchema = z.object({
 
 // UpdateTicketInput: PATCH /api/tickets/:id 요청 타입의 단일 소스(SSOT).
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
+
+// PATCH /api/tickets/reorder 요청 스키마 (docs/API_SPEC.md §7, §457).
+// status 열거형에 DONE을 포함하지 않아, DONE 요청 시 자동으로
+// VALIDATION_ERROR가 발생한다 (Done 이동은 별도 완료 처리 API 사용).
+export const reorderTicketSchema = z.object({
+  ticketId: z.number().int().positive(),
+  status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS'], {
+    errorMap: () => ({ message: '상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요' }),
+  }),
+  position: z.number().int(),
+});
+
+// ReorderTicketInput: PATCH /api/tickets/reorder 요청 타입의 단일 소스(SSOT).
+export type ReorderTicketInput = z.infer<typeof reorderTicketSchema>;

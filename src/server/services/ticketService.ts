@@ -11,6 +11,7 @@ import type {
 } from '@/shared/types';
 import type {
   CreateTicketInput,
+  ReorderTicketInput,
   UpdateTicketInput,
 } from '@/shared/validations/ticket';
 
@@ -165,6 +166,102 @@ export async function complete(id: number): Promise<TicketWithMeta | null> {
 
   const typedTicket = updated as Ticket;
   return { ...typedTicket, isOverdue: isOverdue(typedTicket) };
+}
+
+// 칼럼 내 삽입 위치 계산 (FR-007, FR-008, research.md Decision 2).
+// columnTickets: 대상 칼럼의 티켓들을 position 오름차순으로, 이동할
+// 티켓 자신은 제외하고 조회한 배열. index: 0-based 삽입 인덱스
+// (research.md Decision 1 — 클라이언트가 보내는 position은 이 인덱스).
+function calculateInsertPosition(
+  columnTickets: Ticket[],
+  index: number
+): { position: number; needsRebalance: boolean } {
+  const prev = columnTickets[index - 1] ?? null;
+  const next = columnTickets[index] ?? null;
+
+  if (!prev && !next) return { position: 0, needsRebalance: false };
+  if (!prev) return { position: next!.position - 1024, needsRebalance: false };
+  if (!next) return { position: prev.position + 1024, needsRebalance: false };
+
+  const mid = (prev.position + next.position) / 2;
+  const needsRebalance = mid - prev.position < 1 || next.position - mid < 1;
+  return { position: mid, needsRebalance };
+}
+
+// 순서/상태 변경 (FR-001~FR-011): 트랜잭션으로 상태·위치·파생 필드를
+// 원자적으로 갱신한다 (research.md Decision 3). 반환값이 null이면 대상
+// 티켓이 존재하지 않는 것이다.
+export async function reorder(
+  input: ReorderTicketInput
+): Promise<{ ticket: TicketWithMeta; affected: { id: number; position: number }[] } | null> {
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(tickets)
+      .where(eq(tickets.id, input.ticketId))
+      .limit(1);
+
+    if (!existing) return null;
+
+    const from = (existing as Ticket).status;
+    const to = input.status;
+
+    const columnTickets = (await tx
+      .select()
+      .from(tickets)
+      .where(eq(tickets.status, to))
+      .orderBy(asc(tickets.position))) as Ticket[];
+    const columnWithoutSelf = columnTickets.filter(
+      (t) => t.id !== input.ticketId
+    );
+
+    const initial = calculateInsertPosition(columnWithoutSelf, input.position);
+    let position = initial.position;
+
+    const affected: { id: number; position: number }[] = [];
+
+    if (initial.needsRebalance) {
+      for (let i = 0; i < columnWithoutSelf.length; i++) {
+        const newPosition = i * 1024;
+        await tx
+          .update(tickets)
+          .set({ position: newPosition })
+          .where(eq(tickets.id, columnWithoutSelf[i].id));
+        affected.push({ id: columnWithoutSelf[i].id, position: newPosition });
+      }
+      const rebalanced = columnWithoutSelf.map((t, i) => ({
+        ...t,
+        position: i * 1024,
+      }));
+      position = calculateInsertPosition(rebalanced, input.position).position;
+    }
+
+    const patch: Partial<
+      Pick<Ticket, 'status' | 'position' | 'startedAt' | 'completedAt'>
+    > = { status: to, position };
+
+    if (to === TICKET_STATUS.TODO && from !== TICKET_STATUS.TODO) {
+      patch.startedAt = new Date();
+    } else if (to === TICKET_STATUS.BACKLOG) {
+      patch.startedAt = null;
+    }
+
+    if (from === TICKET_STATUS.DONE) {
+      patch.completedAt = null;
+    }
+
+    const [updated] = await tx
+      .update(tickets)
+      .set(patch)
+      .where(eq(tickets.id, input.ticketId))
+      .returning();
+
+    const typedTicket = updated as Ticket;
+    return {
+      ticket: { ...typedTicket, isOverdue: isOverdue(typedTicket) },
+      affected,
+    };
+  });
 }
 
 // 영구 삭제 (FR-009, FR-010): 하드 삭제, 되돌릴 수 없다.
