@@ -1,62 +1,368 @@
-# CLAUDE.md
+# CLAUDE.md - Tika Development Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+> **핵심 원칙은 `.specify/memory/constitution.md` 참조**
+> 이 문서는 구체적인 구현 방법과 실무 가이드를 다룬다.
 
-## Project status
+## 프로젝트 개요
+Tika는 티켓 기반 칸반 보드 TODO 앱이다.
+Next.js App Router 기반으로, 프론트엔드와 백엔드를 디렉토리 수준에서 분리한다.
+src/shared/에서 타입과 검증 스키마를 공유한다.
 
-**Tika** (Ticket-based Kanban board TODO app) is currently spec-only — this repository contains no source code yet, only the `docs/` directory. There is no `package.json`, no `app/`, no `src/`. Before writing any code, scaffold the Next.js project per the structure in `docs/TRD.md` §3.
-
-Do not invent commands, scripts, or file paths that aren't yet in this repo — check whether the project has been scaffolded first (`ls package.json`). Once scaffolded, this file should be updated with the actual build/lint/test commands from `package.json`.
-
-## Spec documents (read before implementing)
-
-All product and technical decisions are pre-defined in `docs/`. Read the relevant doc before implementing a feature rather than guessing:
-
-- `docs/PRD.md` — product scope, user scenarios, fixed 4-column board layout (Backlog sidebar + TODO/In Progress/Done main grid)
-- `docs/TRD.md` — system architecture, full directory structure, layering rules, data flow diagrams
-- `docs/REQUIREMENTS.md` — FR-001~008 functional requirements with exact validation error messages, NFRs, user stories (US-001~008), and the US↔FR↔TC traceability matrix
-- `docs/API_SPEC.md` — full REST API contract (request/response JSON, error codes, Zod schemas) for all 7 endpoints
-- `docs/DATA_MODEL.md` — Drizzle schema, TypeScript types, business rules (position math, startedAt/completedAt automation, overdue/24h-visibility logic), seed data
-- `docs/COMPONENT_SPEC.md` — React component tree, props, hooks (`useTickets`), event flows
-- `docs/TEST_CASES.md` — TDD test cases (TC-API-*, TC-COMP-*, TC-INT-*) mapped to FRs/user stories, with a 4-phase implementation priority order
-
-When a spec doc conflicts with what you'd otherwise assume (e.g., which API handles a Done-column drag, or when `startedAt`/`completedAt` reset to null), the spec wins. These docs are the source of truth, not example scaffolding.
-
-## Architecture (from TRD.md)
-
-Single Next.js 15 (App Router) project on Vercel with **logical frontend/backend separation by directory**, not by repo:
-
+## 프로젝트 구조
 ```
-app/api/           # Route Handlers only — request parsing + response, NO business logic
-src/server/        # Backend: services/, db/ (Drizzle schema + client), middleware/
-src/client/        # Frontend: components/, hooks/ (useTickets), api/ (ticketApi.ts fetch wrapper)
-src/shared/        # Types, Zod validation schemas, constants — the ONLY code both sides import
+tika/
+├── app/api/          # 백엔드 진입점 (Route Handlers)
+├── src/
+│   ├── server/       # 백엔드 로직 (services, db, middleware)
+│   ├── client/       # 프론트엔드 로직 (components, hooks, api)
+│   └── shared/       # 공유 타입, Zod 스키마, 상수
+└── docs/             # 프로젝트 명세 문서
 ```
 
-Request flow: `Component → src/client/api/ticketApi.ts → app/api/*/route.ts (parse+respond) → src/server/services/ticketService.ts (business logic) → src/server/db/ (Drizzle) → Vercel Postgres`
+## 기술 스택
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript (strict mode)
+- **Frontend**: React 19
+- **Styling**: Tailwind CSS 4
+- **Drag & Drop**: @dnd-kit/core + @dnd-kit/sortable
+- **ORM**: Drizzle ORM 0.38.x
+- **DB**: PostgreSQL, `postgres`(postgres-js) 드라이버로 연결 (로컬/Vercel Postgres 공용)
+- **Validation**: Zod
+- **Testing**: Jest + React Testing Library
+- **Deployment**: Vercel
 
-**Hard boundary rules (TRD.md §7)** — these are the load-bearing constraints of this codebase:
-- `src/server/` and `src/client/` must never import from each other; only `src/shared/` is imported by both
-- Route Handlers stay thin: parse request → call service → return response. No business logic in `app/api/`
-- Components never call `fetch` directly — always go through `src/client/api/ticketApi.ts`
-- `src/server/` contains no React/UI code
-- When a change touches both sides, edit `src/shared/` first, then propagate
+## 환경 설정
 
-### Single-entity data model
+### 환경 변수
+```bash
+# .env.local
+POSTGRES_URL=postgres://user:password@localhost:5432/tika
+```
 
-MVP has one table, `tickets` (no auth, single user — see `docs/DATA_MODEL.md` §2-3 for the full Drizzle schema). Key non-obvious business rules to preserve wherever tickets are mutated:
+### 경로 별칭
+- `@/*` → `src/*` (tsconfig.json / jest.config.ts 공통)
+  - `@/shared/...`, `@/server/...`, `@/client/...`
+- `app/`은 별칭 없음 — 상대 경로로 import (예: `../../app/api/tickets/route`)
 
-- **Position ordering**: fractional positioning. New/moved cards get `(prev + next) / 2`; if the gap collapses below 1, the whole column is rebalanced to 1024-unit spacing. Top-of-column insert = `min(position) - 1024`.
-- **`startedAt`/`completedAt` are system-only fields**, never user-editable. `startedAt` is set when a ticket moves to TODO and cleared when it moves back to BACKLOG. `completedAt` is set only via the dedicated complete endpoint and cleared when a ticket leaves DONE via reorder.
-- **Two different endpoints for "moving to Done" vs. everything else**: `PATCH /api/tickets/:id/complete` is the *only* way to move a ticket into DONE; `PATCH /api/tickets/reorder` explicitly rejects `status: "DONE"` and handles all other column/position moves (including moving *out of* DONE). Frontend DnD logic must branch on destination column to pick the right endpoint (see API_SPEC.md "프론트엔드 DnD 라우팅 규칙").
-- **`isOverdue` is a derived field**, computed at query time (`dueDate < today && status !== DONE`), never persisted.
-- **Done column has a 24-hour visibility window**: `GET /api/tickets` excludes DONE tickets whose `completedAt` is more than 24h old, filtered server-side.
-- Dates: `plannedStartDate`/`dueDate` are user-entered `DATE` (YYYY-MM-DD); `startedAt`/`completedAt`/`createdAt`/`updatedAt` are system `TIMESTAMP`. Timezone is Asia/Seoul.
+## 명세 문서 (구현 전 필수 확인)
+| 문서 | 용도 |
+|------|------|
+| docs/PRD.md | 제품 요구사항 |
+| docs/TRD.md | 기술 요구사항 |
+| docs/REQUIREMENTS.md | 상세 요구사항 (FR + NFR + US) |
+| docs/API_SPEC.md | API 엔드포인트 명세 |
+| docs/DATA_MODEL.md | DB 스키마, ERD, 비즈니스 규칙 |
+| docs/COMPONENT_SPEC.md | 컴포넌트 계층, Props, 이벤트 |
+| docs/TEST_CASES.md | TDD용 테스트 케이스 정의 |
 
-### Validation
+## 코딩 컨벤션
 
-Zod schemas live in `src/shared/validations/ticket.ts` and are shared verbatim between client-side form validation and server-side Route Handler validation — do not duplicate validation logic in both places. Exact error message strings are specified in REQUIREMENTS.md and API_SPEC.md and are part of the contract (tests assert on them).
+### TypeScript
+```typescript
+// ✅ Good
+interface Ticket {
+  id: number;
+  title: string;
+}
 
-## TDD workflow
+export const TICKET_STATUS = {
+  BACKLOG: 'BACKLOG',
+  TODO: 'TODO',
+} as const;
 
-`docs/TEST_CASES.md` defines the test cases and a 4-phase build order: (1) core backend API — create/read/reorder/complete, (2) remaining CRUD + overdue + basic components, (3) form/modal components, (4) DnD + full integration. Write the test for a TC ID before implementing the behavior it covers.
+type TicketStatus = typeof TICKET_STATUS[keyof typeof TICKET_STATUS];
+
+// ❌ Bad
+interface ITicket { ... }           // I 접두사 사용 금지
+enum TicketStatus { ... }           // enum 대신 const 객체 사용
+let data: any;                      // any 사용 금지
+```
+
+### 백엔드 (app/api/ + src/server/)
+
+#### Route Handler 패턴
+```typescript
+// app/api/tickets/route.ts
+import { NextResponse } from 'next/server';
+import { createTicketSchema } from '@/shared/validations/ticket';
+import { create } from '@/server/services/ticketService';
+
+export async function POST(req: Request) {
+  // 1. 요청 파싱
+  const json = await req.json();
+
+  // 2. Zod 검증
+  const parsed = createTicketSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0].message } },
+      { status: 400 }
+    );
+  }
+
+  // 3. 서비스 호출
+  const ticket = await create(parsed.data);
+
+  // 4. 응답 반환
+  return NextResponse.json(ticket, { status: 201 });
+}
+```
+
+#### 서비스 레이어 패턴
+```typescript
+// src/server/services/ticketService.ts
+// 객체 메서드가 아닌 named export 함수로 작성한다.
+import { eq, sql } from 'drizzle-orm';
+import { db } from '../db';
+import { tickets } from '../db/schema';
+import { TICKET_STATUS } from '@/shared/types';
+import type { Ticket } from '@/shared/types';
+import type { CreateTicketInput } from '@/shared/validations/ticket';
+
+// 칼럼의 min(position) - 1024 (맨 위 배치). 칼럼이 비면 0.
+async function nextBacklogPosition(): Promise<number> {
+  const [{ min }] = await db
+    .select({ min: sql<number | null>`min(${tickets.position})` })
+    .from(tickets)
+    .where(eq(tickets.status, TICKET_STATUS.BACKLOG));
+
+  return min == null ? 0 : min - 1024;
+}
+
+export async function create(input: CreateTicketInput): Promise<Ticket> {
+  const [ticket] = await db
+    .insert(tickets)
+    .values({
+      title: input.title,
+      description: input.description ?? null,
+      status: TICKET_STATUS.BACKLOG,
+      priority: input.priority ?? 'MEDIUM',
+      position: await nextBacklogPosition(),
+      plannedStartDate: input.plannedStartDate ?? null,
+      dueDate: input.dueDate ?? null,
+    })
+    .returning();
+
+  return ticket;
+}
+```
+
+#### 에러 응답 형식
+```typescript
+// ✅ 올바른 에러 응답
+return Response.json(
+  {
+    error: {
+      code: 'TICKET_NOT_FOUND',
+      message: '티켓을 찾을 수 없습니다'
+    }
+  },
+  { status: 404 }
+);
+
+// ❌ 잘못된 에러 응답
+return Response.json({ message: 'Not found' }, { status: 404 });
+return Response.json({ error: 'Not found' }, { status: 404 });
+```
+
+### 프론트엔드 (src/client/)
+
+#### 컴포넌트 패턴
+```typescript
+// src/client/components/ticket/TicketCard.tsx
+import type { TicketWithMeta } from '@/shared/types';
+
+interface TicketCardProps {
+  ticket: TicketWithMeta;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
+}
+
+export const TicketCard = ({ ticket, onEdit, onDelete }: TicketCardProps) => {
+  return (
+    <div className="p-4 bg-white rounded shadow">
+      <h3>{ticket.title}</h3>
+      {ticket.description && <p>{ticket.description}</p>}
+    </div>
+  );
+};
+```
+
+#### API 호출 패턴
+```typescript
+// src/client/api/ticketApi.ts
+import type { CreateTicketInput, Ticket } from '@/shared/types';
+
+export const ticketApi = {
+  async create(input: CreateTicketInput): Promise<Ticket> {
+    const res = await fetch('/api/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error?.message ?? 'Unknown error');
+    }
+
+    return res.json();
+  },
+};
+
+// 컴포넌트에서 사용
+import { ticketApi } from '@/client/api/ticketApi';
+
+const handleCreate = async (data: CreateTicketInput) => {
+  try {
+    const ticket = await ticketApi.create(data);
+    // ...
+  } catch (error) {
+    console.error(error);
+  }
+};
+```
+
+## SDD 워크플로우
+
+### 1. 구현 전 명세 확인
+```
+API 구현 → API_SPEC.md 확인
+컴포넌트 → COMPONENT_SPEC.md 확인
+DB 작업 → DATA_MODEL.md 확인
+타입 정의 → src/shared/types 확인
+```
+
+### 2. TDD 사이클
+```
+1. TEST_CASES.md에서 테스트 케이스 확인
+2. 테스트 코드 작성 (Red) - 실패하는 테스트
+3. 최소 구현 (Green) - 테스트 통과
+4. 리팩토링 (Refactor) - 코드 개선
+5. 명세 일치 확인
+```
+
+### 3. 구현 순서
+```
+1. src/shared/types - 타입 정의
+2. src/shared/validations - Zod 스키마
+3. __tests__/ - 테스트 코드
+4. src/server/services/ - 비즈니스 로직
+5. app/api/ - Route Handler
+6. src/client/api/ - API 호출 함수
+7. src/client/components/ - UI 컴포넌트
+```
+
+## 개발 명령어
+
+### 일반 개발
+```bash
+npm run dev          # 개발 서버 실행
+npm run build        # 프로덕션 빌드
+npm run start        # 프로덕션 서버 실행
+npm run lint         # ESLint 실행
+```
+
+### 테스트
+```bash
+npm run test         # 테스트 실행
+npm run test:watch   # watch 모드
+npx tsc --noEmit     # 타입 체크
+```
+
+### 데이터베이스
+```bash
+npm run db:generate  # 마이그레이션 생성
+npm run db:migrate   # 마이그레이션 실행 (POSTGRES_URL을 인라인으로 넘겨야 함 — 아래 참고)
+npm run db:studio    # Drizzle Studio 실행
+```
+
+> `drizzle-kit`은 `.env.local`을 자동으로 읽지 않는다. `db:migrate`/`db:studio`
+> 실행 시 `POSTGRES_URL='postgres://...' npm run db:migrate`처럼 인라인으로
+> 넘기거나 셸에 미리 export해야 한다 (`db:generate`는 DB 접속이 필요 없어 예외).
+
+## 검증 체크리스트
+
+### 커밋 전
+- [ ] `npx tsc --noEmit` 타입 체크 통과
+- [ ] `npm run test` 모든 테스트 통과
+- [ ] `npm run build` 빌드 성공
+- [ ] console.log 제거 확인
+- [ ] .env 파일 미포함 확인
+
+### PR 전
+- [ ] 명세 문서와 일치 확인
+- [ ] 테스트 커버리지 충분
+- [ ] 레이어 분리 준수 (Route Handler vs Service)
+- [ ] Zod 검증 누락 없음
+- [ ] 에러 응답 형식 일치
+
+## 금지 사항
+
+### 절대 하지 말 것
+- ❌ any 타입 사용
+- ❌ 명세 없는 기능 추가
+- ❌ 테스트 삭제 또는 `.skip()`
+- ❌ console.log 커밋
+- ❌ .env 파일 커밋
+- ❌ src/client/에서 DB 직접 접근
+- ❌ Route Handler에 비즈니스 로직 작성
+
+### 확인 필요
+- ⚠️ DB 스키마 변경 → 마이그레이션 생성
+- ⚠️ shared 타입 변경 → 영향 범위 확인
+- ⚠️ API 응답 형식 변경 → API_SPEC.md 먼저 수정
+- ⚠️ 패키지 추가/업그레이드 → 호환성 확인
+
+## 문제 해결
+
+### 타입 에러
+```bash
+# 타입 체크
+npx tsc --noEmit
+
+# 캐시 삭제 후 재시도
+rm -rf .next
+npm run build
+```
+
+### 테스트 실패
+```bash
+# 단일 테스트 실행
+npm run test -- path/to/test.test.ts
+
+# 상세 로그
+npm run test -- --verbose
+```
+
+### DB 연결 오류
+```bash
+# 환경 변수 확인
+echo $POSTGRES_URL
+
+# DB 상태 확인
+psql $POSTGRES_URL -c "SELECT 1"
+```
+
+## Git 워크플로우
+
+### 커밋 메시지
+```bash
+feat: 티켓 생성 API 구현
+fix: 티켓 삭제 시 404 에러 수정
+refactor: ticketService 로직 분리
+test: 티켓 목록 조회 테스트 추가
+docs: API_SPEC.md 에러 코드 추가
+```
+
+### 브랜치 전략
+- `main`: 프로덕션
+- `feat/*`: 기능 구현 (예: `feat/tc-api-001-green`)
+- `test/*`: TDD Red 단계 (예: `test/tc-api-001-red`)
+- `refactor/*`: 리팩터링
+- `chore/*`: 설정/문서/스캐폴딩 정비
+- `fix/*`: 버그 수정
+
+---
+
+**핵심 원칙과 거버넌스는 `.specify/memory/constitution.md` 참조**
