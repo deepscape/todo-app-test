@@ -275,11 +275,17 @@ npx tsc --noEmit     # 타입 체크
 npm run db:generate  # 마이그레이션 생성
 npm run db:migrate   # 마이그레이션 실행 (POSTGRES_URL을 인라인으로 넘겨야 함 — 아래 참고)
 npm run db:studio    # Drizzle Studio 실행
+npm run db:seed      # 개발용 시드 데이터 삽입 (POSTGRES_URL 인라인 필요, 아래 참고)
 ```
 
 > `drizzle-kit`은 `.env.local`을 자동으로 읽지 않는다. `db:migrate`/`db:studio`
 > 실행 시 `POSTGRES_URL='postgres://...' npm run db:migrate`처럼 인라인으로
 > 넘기거나 셸에 미리 export해야 한다 (`db:generate`는 DB 접속이 필요 없어 예외).
+> `db:seed`(`ts-node`로 직접 실행)도 마찬가지로 `.env.local`을 자동 로드하지
+> 않으므로 동일하게 인라인으로 넘겨야 한다.
+> `src/server/db/seed.ts`는 실행 시점 기준 상대 날짜로 티켓 9건(각 칼럼에
+> 분산, isOverdue/Done 24시간 노출 케이스 포함)을 생성하며, 실행할 때마다
+> 기존 데이터를 전부 지우고 새로 삽입한다.
 
 ## 검증 체크리스트
 
