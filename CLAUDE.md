@@ -369,6 +369,15 @@ docs: API_SPEC.md 에러 코드 추가
 - `chore/*`: 설정/문서/스캐폴딩 정비
 - `fix/*`: 버그 수정
 
+## 최근 변경사항 (최근 7-14일)
+
+<!-- CHANGELOG-RECENT:START -->
+<!-- /changelog 명령이 이 블록 안쪽만 자동으로 갱신한다. 직접 수정해도
+     다음 /changelog 실행 시 덮어써진다. 전체 이력은 CHANGELOG.md 참조. -->
+- **2026-09-15** [feat/changelog-skill] `/changelog` 스킬 추가 — 작업 이력
+  자동 기록 (`.claude/skills/changelog/SKILL.md`, `CHANGELOG.md`)
+<!-- CHANGELOG-RECENT:END -->
+
 ---
 
 **핵심 원칙과 거버넌스는 `.specify/memory/constitution.md` 참조**
