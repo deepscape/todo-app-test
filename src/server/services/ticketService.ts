@@ -3,19 +3,25 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { tickets } from '../db/schema';
 import { COLUMN_ORDER, TICKET_STATUS } from '@/shared/types';
-import type { BoardData, Ticket, TicketWithMeta } from '@/shared/types';
+import type {
+  BoardData,
+  Ticket,
+  TicketStatus,
+  TicketWithMeta,
+} from '@/shared/types';
 import type {
   CreateTicketInput,
   UpdateTicketInput,
 } from '@/shared/validations/ticket';
 
-// 생성 시 position: BACKLOG 칼럼의 min(position) - 1024 (맨 위 배치).
-// 칼럼이 비어 있으면 0 (docs/REQUIREMENTS.md §FR-001).
-async function nextBacklogPosition(): Promise<number> {
+// 특정 칼럼(status)의 min(position) - 1024 (맨 위 배치). 칼럼이 비어
+// 있으면 0. 티켓 생성(BACKLOG) 및 완료 처리(DONE) 양쪽에서 공유한다
+// (docs/REQUIREMENTS.md §FR-001, docs/DATA_MODEL.md §5.5).
+async function nextTopPosition(status: TicketStatus): Promise<number> {
   const [{ min }] = await db
     .select({ min: sql<number | null>`min(${tickets.position})` })
     .from(tickets)
-    .where(eq(tickets.status, TICKET_STATUS.BACKLOG));
+    .where(eq(tickets.status, status));
 
   return min == null ? 0 : min - 1024;
 }
@@ -28,7 +34,7 @@ export async function create(input: CreateTicketInput): Promise<Ticket> {
       description: input.description ?? null,
       status: TICKET_STATUS.BACKLOG,
       priority: input.priority ?? 'MEDIUM',
-      position: await nextBacklogPosition(),
+      position: await nextTopPosition(TICKET_STATUS.BACKLOG),
       plannedStartDate: input.plannedStartDate ?? null,
       dueDate: input.dueDate ?? null,
     })
@@ -132,6 +138,28 @@ export async function update(
   const [updated] = await db
     .update(tickets)
     .set(patch)
+    .where(eq(tickets.id, id))
+    .returning();
+
+  const typedTicket = updated as Ticket;
+  return { ...typedTicket, isOverdue: isOverdue(typedTicket) };
+}
+
+// 완료 처리 (FR-001~FR-003, FR-005, FR-006): 임의 상태의 티켓을 DONE으로
+// 전환하고 completedAt을 현재 시각으로, position을 DONE 칼럼 맨 위로
+// 설정한다. 이전 상태가 이미 DONE이어도 동일하게 갱신한다(멱등,
+// research.md Decision 3).
+export async function complete(id: number): Promise<TicketWithMeta | null> {
+  const existing = await getById(id);
+  if (!existing) return null;
+
+  const [updated] = await db
+    .update(tickets)
+    .set({
+      status: TICKET_STATUS.DONE,
+      completedAt: new Date(),
+      position: await nextTopPosition(TICKET_STATUS.DONE),
+    })
     .where(eq(tickets.id, id))
     .returning();
 
