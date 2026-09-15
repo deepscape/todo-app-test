@@ -20,7 +20,12 @@
  * 각 테스트 전에 tickets 테이블을 TRUNCATE 하여 격리한다.
  */
 
-import { truncateTickets, closeDb } from './helpers/db';
+import {
+  truncateTickets,
+  closeDb,
+  setCompletedAt,
+  setDueDate,
+} from './helpers/db';
 
 // app/api/tickets/route.ts 는 아직 미구현 (TDD Red).
 // 파일 최상단에서 import 하면 스위트 전체가 로드 전 죽으므로,
@@ -30,6 +35,11 @@ async function loadPost(): Promise<
 > {
   const mod = await import('../../app/api/tickets/route');
   return mod.POST;
+}
+
+async function loadGet(): Promise<() => Response | Promise<Response>> {
+  const mod = await import('../../app/api/tickets/route');
+  return mod.GET;
 }
 
 // --- 날짜 유틸: "오늘" 기준 상대 날짜를 YYYY-MM-DD 로 --------------------------
@@ -139,6 +149,24 @@ describe('POST /api/tickets — 티켓 생성 (TC-API-001)', () => {
     expect(body.error.message).toBe('제목을 입력해주세요');
   });
 
+  it('001-4: 빈 제목 → 400, "제목을 입력해주세요"', async () => {
+    const res = await postTickets({ title: '' });
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('제목을 입력해주세요');
+  });
+
+  it('001-5: 공백만 제목 → 400, "제목을 입력해주세요"', async () => {
+    const res = await postTickets({ title: '   ' });
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('제목을 입력해주세요');
+  });
+
   it('001-6: 제목 200자 초과 → 400, "제목은 200자 이내로 입력해주세요"', async () => {
     const res = await postTickets({ title: 'a'.repeat(201) });
     expect(res.status).toBe(400);
@@ -146,6 +174,18 @@ describe('POST /api/tickets — 티켓 생성 (TC-API-001)', () => {
     const body = await res.json();
     expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(body.error.message).toBe('제목은 200자 이내로 입력해주세요');
+  });
+
+  it('001-7: 설명 1000자 초과 → 400, "설명은 1000자 이내로 입력해주세요"', async () => {
+    const res = await postTickets({
+      title: 'ok',
+      description: 'a'.repeat(1001),
+    });
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('설명은 1000자 이내로 입력해주세요');
   });
 
   it('001-9: 과거 종료예정일 → 400, "종료예정일은 오늘 이후 날짜를 선택해주세요"', async () => {
@@ -164,5 +204,177 @@ describe('POST /api/tickets — 티켓 생성 (TC-API-001)', () => {
     const body = await res.json();
     expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(body.error.message).toBe('우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요');
+  });
+
+  it('001-10: position 자동 할당 → 연속 2개 생성 시 나중 티켓의 position이 더 작음', async () => {
+    const first = await postTickets({ title: '먼저 생성' });
+    const firstBody = await first.json();
+
+    const second = await postTickets({ title: '나중 생성' });
+    const secondBody = await second.json();
+
+    // nextBacklogPosition() = min(position) - 1024 (맨 위 배치)
+    expect(secondBody.position).toBeLessThan(firstBody.position);
+  });
+
+  it('001-11: startedAt/completedAt 초기값 → 정상 생성 시 둘 다 null', async () => {
+    const res = await postTickets({ title: '초기값 확인용 티켓' });
+    expect(res.status).toBe(201);
+
+    const body = await res.json();
+    expect(body.startedAt).toBeNull();
+    expect(body.completedAt).toBeNull();
+  });
+});
+
+describe('GET /api/tickets — 보드 조회 (TC-API-002)', () => {
+  it('002-1: 빈 DB → 200, 4개 칼럼 모두 빈 배열, total: 0', async () => {
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.board.BACKLOG).toEqual([]);
+    expect(body.board.TODO).toEqual([]);
+    expect(body.board.IN_PROGRESS).toEqual([]);
+    expect(body.board.DONE).toEqual([]);
+    expect(body.total).toBe(0);
+  });
+
+  it('002-2: 서로 다른 상태의 티켓들이 각자의 칼럼에 정확히 그룹화됨', async () => {
+    await postTickets({ title: '백로그 티켓' });
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    expect(body.board.BACKLOG).toHaveLength(1);
+    expect(body.board.BACKLOG[0].title).toBe('백로그 티켓');
+    expect(body.board.TODO).toHaveLength(0);
+    expect(body.board.IN_PROGRESS).toHaveLength(0);
+    expect(body.board.DONE).toHaveLength(0);
+  });
+
+  it('002-4: 응답의 total이 실제 포함된 티켓 개수와 일치', async () => {
+    await postTickets({ title: '티켓 1' });
+    await postTickets({ title: '티켓 2' });
+    await postTickets({ title: '티켓 3' });
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    expect(body.total).toBe(3);
+  });
+
+  it('002-3: 같은 칼럼 내 티켓이 position 오름차순으로 정렬됨', async () => {
+    // POST는 매번 min(position) - 1024로 맨 위에 삽입하므로, 나중에 생성한
+    // 티켓일수록 position이 더 작다 → 생성 역순이 곧 position 오름차순이다.
+    await postTickets({ title: '첫 번째 생성' });
+    await postTickets({ title: '두 번째 생성' });
+    await postTickets({ title: '세 번째 생성' });
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    const titles = body.board.BACKLOG.map((t: { title: string }) => t.title);
+    expect(titles).toEqual(['세 번째 생성', '두 번째 생성', '첫 번째 생성']);
+
+    const positions = body.board.BACKLOG.map(
+      (t: { position: number }) => t.position
+    );
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it('002-5: completedAt이 24시간 이내인 DONE 티켓 → DONE 칼럼에 포함', async () => {
+    const createRes = await postTickets({ title: '방금 완료한 티켓' });
+    const created = await createRes.json();
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    await setCompletedAt(created.id, oneHourAgo);
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    const ids = body.board.DONE.map((t: { id: number }) => t.id);
+    expect(ids).toContain(created.id);
+  });
+
+  it('002-6: completedAt이 24시간 이전인 DONE 티켓 → DONE 칼럼에서 제외', async () => {
+    const createRes = await postTickets({ title: '오래전 완료한 티켓' });
+    const created = await createRes.json();
+    const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    await setCompletedAt(created.id, twentyFiveHoursAgo);
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    const ids = body.board.DONE.map((t: { id: number }) => t.id);
+    expect(ids).not.toContain(created.id);
+    expect(body.total).toBe(0);
+  });
+
+  it('002-7: 각 티켓에 isOverdue boolean 값이 포함됨', async () => {
+    const overdueRes = await postTickets({ title: '기한 초과 티켓' });
+    const overdue = await overdueRes.json();
+    await setDueDate(overdue.id, '2020-01-01');
+
+    const doneRes = await postTickets({ title: '완료된 기한 초과 티켓' });
+    const done = await doneRes.json();
+    await setDueDate(done.id, '2020-01-01');
+    await setCompletedAt(done.id, new Date());
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    const overdueTicket = body.board.BACKLOG.find(
+      (t: { id: number }) => t.id === overdue.id
+    );
+    expect(overdueTicket.isOverdue).toBe(true);
+
+    const doneTicket = body.board.DONE.find(
+      (t: { id: number }) => t.id === done.id
+    );
+    expect(doneTicket.isOverdue).toBe(false);
+  });
+
+  it('002-7b: dueDate가 없는 티켓 → isOverdue: false (엣지 케이스)', async () => {
+    const createRes = await postTickets({ title: '기한 없는 티켓' });
+    const created = await createRes.json();
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    const ticket = body.board.BACKLOG.find(
+      (t: { id: number }) => t.id === created.id
+    );
+    expect(ticket.isOverdue).toBe(false);
+  });
+
+  it('002-8: 정상 조회 시 모든 날짜 필드가 응답에 포함됨', async () => {
+    const createRes = await postTickets({
+      title: '날짜 필드 확인용 티켓',
+      plannedStartDate: isoDatePlusDays(1),
+      dueDate: isoDatePlusDays(10),
+    });
+    const created = await createRes.json();
+
+    const GET = await loadGet();
+    const res = (await GET()) as Response;
+    const body = await res.json();
+
+    const ticket = body.board.BACKLOG.find(
+      (t: { id: number }) => t.id === created.id
+    );
+    expect(ticket).toHaveProperty('plannedStartDate');
+    expect(ticket).toHaveProperty('dueDate');
+    expect(ticket).toHaveProperty('startedAt');
+    expect(ticket).toHaveProperty('completedAt');
+    expect(ticket.plannedStartDate).toBe(created.plannedStartDate);
+    expect(ticket.dueDate).toBe(created.dueDate);
   });
 });

@@ -8,12 +8,43 @@
  * 않았다. 아래 함수들은 호출 시점에 동적 import 하므로, 모듈이 없으면 그 함수를
  * 호출한 테스트가 개별적으로 실패한다 (TDD Red — 스위트 전체가 죽지 않음).
  */
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getDb(): Promise<any> {
   const mod = await import('../../../src/server/db');
   return mod.db;
+}
+
+/**
+ * 테스트 전용: 티켓을 DONE으로 바꾸고 completedAt을 임의 시각으로 설정한다.
+ * PATCH /api/tickets/:id/complete는 항상 "현재 시각"만 기록하므로, 24시간
+ * 경계를 검증하려면 DB에 직접 과거 시각을 넣어야 한다 (quickstart.md 참조).
+ */
+export async function setCompletedAt(
+  ticketId: number,
+  completedAt: Date
+): Promise<void> {
+  const db = await getDb();
+  const { tickets } = await import('../../../src/server/db/schema');
+  await db
+    .update(tickets)
+    .set({ status: 'DONE', completedAt })
+    .where(eq(tickets.id, ticketId));
+}
+
+/**
+ * 테스트 전용: dueDate를 임의 값(과거 포함)으로 직접 설정한다.
+ * POST /api/tickets는 과거 dueDate를 거부하므로(Zod 검증), 기한 초과
+ * 케이스를 준비하려면 DB에 직접 써야 한다.
+ */
+export async function setDueDate(
+  ticketId: number,
+  dueDate: string
+): Promise<void> {
+  const db = await getDb();
+  const { tickets } = await import('../../../src/server/db/schema');
+  await db.update(tickets).set({ dueDate }).where(eq(tickets.id, ticketId));
 }
 
 /** 각 테스트 전에 tickets 테이블을 비우고 serial id 를 초기화한다. */
