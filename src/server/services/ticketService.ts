@@ -3,8 +3,11 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { tickets } from '../db/schema';
 import { COLUMN_ORDER, TICKET_STATUS } from '@/shared/types';
-import type { BoardData, Ticket } from '@/shared/types';
-import type { CreateTicketInput } from '@/shared/validations/ticket';
+import type { BoardData, Ticket, TicketWithMeta } from '@/shared/types';
+import type {
+  CreateTicketInput,
+  UpdateTicketInput,
+} from '@/shared/validations/ticket';
 
 // 생성 시 position: BACKLOG 칼럼의 min(position) - 1024 (맨 위 배치).
 // 칼럼이 비어 있으면 0 (docs/REQUIREMENTS.md §FR-001).
@@ -36,7 +39,7 @@ export async function create(input: CreateTicketInput): Promise<Ticket> {
 
 // 오버듀 판정 (FR-003, docs/DATA_MODEL.md §5.3): 종료예정일이 지났고 아직
 // 완료(DONE)되지 않은 티켓만 true. DB에 저장하지 않는 파생 값이다.
-function isOverdue(ticket: Ticket): boolean {
+export function isOverdue(ticket: Ticket): boolean {
   if (!ticket.dueDate) return false;
   if (ticket.status === TICKET_STATUS.DONE) return false;
   const today = new Date().toISOString().split('T')[0];
@@ -83,4 +86,64 @@ export async function getBoard(): Promise<{ board: BoardData; total: number }> {
   }
 
   return { board, total };
+}
+
+// 상세 조회 (FR-001, FR-002): 존재하지 않으면 null을 반환해 Route Handler가
+// 404로 변환하도록 한다 (research.md Decision 3).
+export async function getById(id: number): Promise<TicketWithMeta | null> {
+  const [ticket] = await db
+    .select()
+    .from(tickets)
+    .where(eq(tickets.id, id))
+    .limit(1);
+
+  if (!ticket) return null;
+
+  const typedTicket = ticket as Ticket;
+  return { ...typedTicket, isOverdue: isOverdue(typedTicket) };
+}
+
+// 부분 수정 (FR-003~FR-008): 전달된 필드만 갱신한다. description/
+// plannedStartDate/dueDate는 undefined(미전달)와 null(명시적 삭제)을
+// 구분해야 하므로 키 존재 여부('in')로 판정한다 (research.md Decision 2).
+// status/position/startedAt/completedAt은 절대 건드리지 않는다 (FR-007).
+export async function update(
+  id: number,
+  input: UpdateTicketInput
+): Promise<TicketWithMeta | null> {
+  const existing = await getById(id);
+  if (!existing) return null;
+
+  const patch: Partial<
+    Pick<
+      Ticket,
+      'title' | 'description' | 'priority' | 'plannedStartDate' | 'dueDate'
+    >
+  > = {};
+
+  if (input.title !== undefined) patch.title = input.title;
+  if ('description' in input) patch.description = input.description ?? null;
+  if (input.priority !== undefined) patch.priority = input.priority;
+  if ('plannedStartDate' in input) {
+    patch.plannedStartDate = input.plannedStartDate ?? null;
+  }
+  if ('dueDate' in input) patch.dueDate = input.dueDate ?? null;
+
+  const [updated] = await db
+    .update(tickets)
+    .set(patch)
+    .where(eq(tickets.id, id))
+    .returning();
+
+  const typedTicket = updated as Ticket;
+  return { ...typedTicket, isOverdue: isOverdue(typedTicket) };
+}
+
+// 영구 삭제 (FR-009, FR-010): 하드 삭제, 되돌릴 수 없다.
+export async function remove(id: number): Promise<boolean> {
+  const existing = await getById(id);
+  if (!existing) return false;
+
+  await db.delete(tickets).where(eq(tickets.id, id));
+  return true;
 }
