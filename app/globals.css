@@ -1,1 +1,114 @@
 @import "tailwindcss";
+
+/* ===========================================================
+   Tika Design Tokens
+   Tailwind 4 CSS-first theme. 아래 각 --color, --radius, --shadow,
+   --spacing 항목은 자동으로 대응 유틸리티 클래스를 생성한다
+   (예: --color-priority-high 는 bg-priority-high, text-priority-high,
+   border-priority-high 유틸리티를 만든다).
+
+   색상 의미 체계 (docs/PRD.md, docs/COMPONENT_SPEC.md 기준 고정):
+     red    → HIGH 우선순위 + 오버듀 경고 전용
+     blue   → MEDIUM 우선순위 전용
+     gray   → LOW 우선순위 + 중립 UI
+     brand(인디고) → 인터랙티브/브랜드 요소 전용
+       (활성 필터, 기본 버튼, 포커스 링)
+   와이어프레임이 필터 뱃지에 빨간색을 쓴 것과 별개로, 시맨틱 색상(우선
+   순위/오버듀)과 인터랙티브 색상(브랜드)을 명확히 분리한다.
+
+   다크 모드: MVP 범위 밖이라 의도적으로 생략 (docs/PRD.md §2.1 제외
+   목록, §7 2차 확장 계획). 토큰 이름을 시맨틱하게 지어두어 추후
+   `@media (prefers-color-scheme: dark)` 오버라이드 블록만 추가하면
+   확장 가능하게 한다.
+   =========================================================== */
+
+@theme {
+  /* ---- Surfaces ---- */
+  --color-board-bg: #f4f5f7;          /* 전체 배경 (사이드바+보드 뒤) */
+  --color-column-bg: #ebecf0;         /* 칼럼 공통 연한 회색 배경 (4칼럼 동일) */
+  --color-column-header-bg: #e4e6ea;  /* 칼럼 헤더 스트립, 본문보다 살짝 진하게 */
+  --color-card-bg: #ffffff;           /* 카드 표면 */
+  --color-card-border: #dfe1e6;       /* 카드 옅은 테두리 */
+
+  /* ---- Text ---- */
+  --color-text-primary: #172b4d;      /* 제목, 본문 */
+  --color-text-secondary: #44546f;    /* 설명 */
+  --color-text-muted: #6b778c;        /* 메타 텍스트: 날짜, 카운트 */
+  --color-text-inverse: #ffffff;      /* 채워진(브랜드/danger) 표면 위 텍스트 */
+
+  /* ---- Brand / 인터랙티브 강조색 (빨강 아님) ----
+     활성 FilterBar 필터, Primary 버튼, 포커스 링, 선택 상태에 사용.
+     MEDIUM-blue, HIGH-red와 구분되는 별도 색조로 절대 우선순위
+     의미와 충돌하지 않는다. */
+  --color-brand: #4c6ef5;
+  --color-brand-hover: #3b5bdb;
+  --color-brand-subtle: #edf1ff;      /* ghost 버튼 hover 배경 등 옅은 틴트 */
+
+  /* ---- 우선순위 뱃지 (배경+텍스트 쌍, AA 대비 확보) ---- */
+  --color-priority-low-bg: #dfe1e6;
+  --color-priority-low-text: #42526e;
+
+  --color-priority-medium-bg: #deebff;
+  --color-priority-medium-text: #0747a6;
+
+  --color-priority-high-bg: #ffebe6;
+  --color-priority-high-text: #bf2600;
+
+  /* ---- 오버듀 강조 (HIGH와 같은 red 계열이지만 별도 토큰 —
+     뱃지 배경이 아닌 카드 테두리/아이콘에 적용되므로 분리) ---- */
+  --color-overdue: #de350b;
+  --color-overdue-bg: #fff0ee;
+
+  /* ---- Danger (삭제 등 위험 동작 — red는 앱 전체에서
+     "위험/긴급"을 일관되게 의미) ---- */
+  --color-danger: #de350b;
+  --color-danger-hover: #bf2600;
+
+  /* ---- 중립 / Secondary 버튼 + 테두리 ---- */
+  --color-neutral: #f4f5f7;
+  --color-neutral-hover: #ebecf0;
+  --color-neutral-border: #c1c7d0;
+
+  /* ---- Overlay (Modal) ---- */
+  --color-overlay: rgb(9 30 66 / 0.54);
+
+  /* ---- Radius ---- */
+  --radius-card: 0.5rem;      /* ~8px, Trello 참고 이미지 기준 */
+  --radius-control: 0.375rem; /* 버튼/인풋 */
+  --radius-badge: 9999px;     /* 필(pill) 형태 */
+
+  /* ---- Shadow ---- */
+  --shadow-card: 0 1px 2px rgb(9 30 66 / 0.16), 0 0 1px rgb(9 30 66 / 0.31);
+  --shadow-card-dragging: 0 8px 16px rgb(9 30 66 / 0.24);
+  --shadow-modal: 0 12px 32px rgb(9 30 66 / 0.28);
+
+  /* ---- Spacing ---- */
+  --spacing-card-gap: 0.5rem; /* 카드 간격 8px, docs/COMPONENT_SPEC.md §2.5 */
+}
+
+/* ===========================================================
+   Base layer — 전역/비컴포넌트 관심사만.
+   Badge/Button/Card/Modal 등 컴포넌트 레벨 클래스는 위 토큰을 사용해
+   각 .tsx 파일에서 Tailwind 유틸리티로 구현한다 (docs/COMPONENT_SPEC.md §3).
+   =========================================================== */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-board-bg);
+    color: var(--color-text-primary);
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+      Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
