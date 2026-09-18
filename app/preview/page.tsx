@@ -16,7 +16,10 @@ import { DueDateBadge } from '@/client/components/ui/DueDateBadge';
 import { Modal } from '@/client/components/ui/Modal';
 import { ConfirmDialog } from '@/client/components/ui/ConfirmDialog';
 import { TicketCard } from '@/client/components/ticket/TicketCard';
-import type { TicketWithMeta } from '@/shared/types';
+import { ColumnHeader } from '@/client/components/board/ColumnHeader';
+import { Column } from '@/client/components/board/Column';
+import { Board } from '@/client/components/board/Board';
+import type { BoardData, TicketWithMeta } from '@/shared/types';
 
 // TicketCard는 useSortable을 쓰므로 DndContext+SortableContext 없이는
 // 렌더할 수 없다. 프리뷰 전용 최소 래퍼 — 실제 드래그 로직은 Phase 5
@@ -47,6 +50,41 @@ function makePreviewTicket(
     updatedAt: new Date(),
     isOverdue: false,
     ...overrides,
+  };
+}
+
+function makePreviewBoard(): BoardData {
+  return {
+    BACKLOG: [
+      makePreviewTicket({
+        id: 101,
+        title: '백로그 티켓 A (HIGH)',
+        status: 'BACKLOG',
+        priority: 'HIGH',
+      }),
+      makePreviewTicket({ id: 102, title: '백로그 티켓 B', status: 'BACKLOG' }),
+    ],
+    TODO: [
+      makePreviewTicket({ id: 103, title: '할 일 티켓 1', status: 'TODO' }),
+      makePreviewTicket({
+        id: 104,
+        title: '할 일 티켓 2 (기한 초과)',
+        status: 'TODO',
+        dueDate: '2020-01-01',
+        isOverdue: true,
+      }),
+      makePreviewTicket({ id: 105, title: '할 일 티켓 3', status: 'TODO' }),
+    ],
+    IN_PROGRESS: [
+      makePreviewTicket({
+        id: 106,
+        title: '진행 중 티켓',
+        status: 'IN_PROGRESS',
+      }),
+    ],
+    DONE: [
+      makePreviewTicket({ id: 107, title: '완료된 티켓', status: 'DONE' }),
+    ],
   };
 }
 
@@ -212,14 +250,48 @@ export default function PreviewPage() {
           <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx 구현 후 여기에 렌더링" />
         </ComponentGroup>
         <ComponentGroup name="ColumnHeader">
-          <EmptyPlaceholder note="src/client/components/board/ColumnHeader.tsx 구현 후 여기에 렌더링" />
+          <div className="w-40">
+            <ColumnHeader label="TODO" count={3} />
+          </div>
+          <div className="w-40">
+            <ColumnHeader label="Done" count={0} />
+          </div>
         </ComponentGroup>
       </PreviewSection>
 
       {/* Phase 5 — Column */}
       <PreviewSection title="Phase 5: Column">
-        <ComponentGroup name="Column">
-          <EmptyPlaceholder note="src/client/components/board/Column.tsx 구현 후 여기에 렌더링" />
+        <ComponentGroup name="Column — 티켓 있음">
+          <SortableContextPreview>
+            <div className="w-64">
+              <Column
+                status="TODO"
+                tickets={[
+                  makePreviewTicket({ id: 201, title: 'Column 예시 티켓 1' }),
+                  makePreviewTicket({ id: 202, title: 'Column 예시 티켓 2' }),
+                ]}
+                onTicketClick={() => {}}
+              />
+            </div>
+          </SortableContextPreview>
+        </ComponentGroup>
+        <ComponentGroup name="Column — 빈 칼럼">
+          <SortableContextPreview>
+            <div className="w-64">
+              <Column status="DONE" tickets={[]} onTicketClick={() => {}} />
+            </div>
+          </SortableContextPreview>
+        </ComponentGroup>
+        <ComponentGroup name="Column — BACKLOG(사이드바 스타일)">
+          <SortableContextPreview>
+            <Column
+              status="BACKLOG"
+              tickets={[
+                makePreviewTicket({ id: 203, title: 'Backlog 예시 티켓' }),
+              ]}
+              onTicketClick={() => {}}
+            />
+          </SortableContextPreview>
         </ComponentGroup>
       </PreviewSection>
 
@@ -236,7 +308,9 @@ export default function PreviewPage() {
       {/* Phase 8 — Board */}
       <PreviewSection title="Phase 8: Board (DnD 통합)">
         <ComponentGroup name="Board">
-          <EmptyPlaceholder note="src/client/components/board/Board.tsx 구현 후 여기에 렌더링" />
+          <div className="h-125 w-full overflow-auto">
+            <Board board={makePreviewBoard()} onTicketClick={() => {}} />
+          </div>
         </ComponentGroup>
       </PreviewSection>
 

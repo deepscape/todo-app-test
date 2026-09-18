@@ -156,4 +156,14 @@
     opacity: 0.4;
     box-shadow: var(--shadow-card-dragging);
   }
+
+  /* BACKLOG 칼럼 전용 사이드바 스타일 (docs/COMPONENT_SPEC.md §2.5,
+     TC-COMP-003 C003-2). 폭/스크롤을 메인 3칼럼 그리드와 구분한다 —
+     실제 그리드 배치는 Board가 결정하고, 이 클래스는 Column 자신의
+     내부 스타일(고정 폭, 자체 스크롤)만 담당한다. */
+  .column--sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
 }
