@@ -37,6 +37,13 @@ describe('Button', () => {
       expect(screen.getByRole('button')).toHaveClass('bg-neutral');
     });
 
+    it('variant="secondary" → 테두리(border-neutral-border)를 포함한다 (board 배경과 동색이라 구분 필요)', () => {
+      render(<Button variant="secondary">취소</Button>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('border');
+      expect(button).toHaveClass('border-neutral-border');
+    });
+
     it('variant="danger" → bg-danger 클래스를 포함한다', () => {
       render(<Button variant="danger">삭제</Button>);
       expect(screen.getByRole('button')).toHaveClass('bg-danger');
@@ -51,19 +58,21 @@ describe('Button', () => {
   });
 
   describe('size별 CSS 클래스', () => {
-    it('size="sm" → text-sm 클래스를 포함한다', () => {
+    it('size="sm" → 가장 좁은 패딩(px-3)을 포함한다', () => {
       render(<Button size="sm">작게</Button>);
-      expect(screen.getByRole('button')).toHaveClass('text-sm');
+      expect(screen.getByRole('button')).toHaveClass('px-3');
     });
 
-    it('size="md" → text-base 클래스를 포함한다', () => {
+    it('size="md" → 중간 패딩(px-4)을 포함한다', () => {
       render(<Button size="md">보통</Button>);
-      expect(screen.getByRole('button')).toHaveClass('text-base');
+      expect(screen.getByRole('button')).toHaveClass('px-4');
     });
 
-    it('size="lg" → text-lg 클래스를 포함한다', () => {
+    it('size="lg" → 가장 넓은 패딩(px-5)과 text-base를 포함한다', () => {
       render(<Button size="lg">크게</Button>);
-      expect(screen.getByRole('button')).toHaveClass('text-lg');
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('px-5');
+      expect(button).toHaveClass('text-base');
     });
   });
 
@@ -73,9 +82,9 @@ describe('Button', () => {
       expect(screen.getByRole('button')).toHaveClass('bg-brand');
     });
 
-    it('size를 지정하지 않으면 md(text-base)가 적용된다', () => {
+    it('size를 지정하지 않으면 md(px-4)가 적용된다', () => {
       render(<Button>기본</Button>);
-      expect(screen.getByRole('button')).toHaveClass('text-base');
+      expect(screen.getByRole('button')).toHaveClass('px-4');
     });
   });
 

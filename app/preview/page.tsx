@@ -14,6 +14,7 @@ import { DueDateBadge } from '@/client/components/ui/DueDateBadge';
 import { Modal } from '@/client/components/ui/Modal';
 import { ConfirmDialog } from '@/client/components/ui/ConfirmDialog';
 
+// 1뎁스: Phase 전체 묶음
 function PreviewSection({
   title,
   children,
@@ -26,8 +27,26 @@ function PreviewSection({
       <h2 className="mb-4 text-lg font-semibold text-text-primary">
         {title}
       </h2>
-      <div className="flex flex-wrap items-start gap-4">{children}</div>
+      <div className="flex flex-col gap-6">{children}</div>
     </section>
+  );
+}
+
+// 2뎁스: Phase 안의 개별 컴포넌트 묶음 (예: Button, Badge, Modal)
+function ComponentGroup({
+  name,
+  children,
+}: {
+  name: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-text-secondary">
+        {name}
+      </h3>
+      <div className="flex flex-wrap items-start gap-2">{children}</div>
+    </div>
   );
 }
 
@@ -55,78 +74,105 @@ export default function PreviewPage() {
         </p>
       </header>
 
-      {/* Phase 1 — Badge, Button */}
-      <PreviewSection title="Phase 1: Badge / Button">
-        <div className="flex w-full flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <PriorityBadge priority="LOW" />
-            <PriorityBadge priority="MEDIUM" />
-            <PriorityBadge priority="HIGH" />
-            <DueDateBadge dueDate="2026-12-31" isOverdue={false} />
-            <DueDateBadge dueDate="2020-01-01" isOverdue />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary">Primary</Button>
-            <Button variant="secondary">Secondary</Button>
-            <Button variant="danger">Danger</Button>
-            <Button variant="ghost">Ghost</Button>
-            <Button isLoading>Loading</Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm">Small</Button>
-            <Button size="md">Medium</Button>
-            <Button size="lg">Large</Button>
-          </div>
-        </div>
-      </PreviewSection>
+      {/* Phase 1 — 공통 프리미티브 (Badge, Button) */}
+      <PreviewSection title="Phase 1-2: 공통 UI 컴포넌트 (src/client/components/ui/)">
+        <ComponentGroup name="PriorityBadge">
+          <PriorityBadge priority="LOW" />
+          <PriorityBadge priority="MEDIUM" />
+          <PriorityBadge priority="HIGH" />
+        </ComponentGroup>
 
-      {/* Phase 2 — Modal, ConfirmDialog */}
-      <PreviewSection title="Phase 2: Modal / ConfirmDialog">
-        <div className="flex flex-wrap items-center gap-2">
+        <ComponentGroup name="DueDateBadge">
+          <DueDateBadge dueDate="2026-12-31" isOverdue={false} />
+          <DueDateBadge dueDate="2020-01-01" isOverdue />
+        </ComponentGroup>
+
+        <ComponentGroup name="Button — variant">
+          <Button variant="primary">Primary</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="danger">Danger</Button>
+          <Button variant="ghost">Ghost</Button>
+        </ComponentGroup>
+
+        <ComponentGroup name="Button — size">
+          <Button size="sm">Small</Button>
+          <Button size="md">Medium</Button>
+          <Button size="lg">Large</Button>
+        </ComponentGroup>
+
+        <ComponentGroup name="Button — isLoading">
+          <Button isLoading>Loading</Button>
+        </ComponentGroup>
+
+        <ComponentGroup name="Modal">
           <Button onClick={() => setIsModalOpen(true)}>Modal 열기</Button>
+          <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+            <p className="text-text-primary">간단한 Modal 컨텐츠 예시</p>
+          </Modal>
+        </ComponentGroup>
+
+        <ComponentGroup name="ConfirmDialog">
           <Button variant="danger" onClick={() => setIsConfirmOpen(true)}>
             ConfirmDialog 열기
           </Button>
-        </div>
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <p className="text-text-primary">간단한 Modal 컨텐츠 예시</p>
-        </Modal>
-        <ConfirmDialog
-          isOpen={isConfirmOpen}
-          message="정말 삭제하시겠습니까?"
-          onConfirm={() => setIsConfirmOpen(false)}
-          onCancel={() => setIsConfirmOpen(false)}
-        />
+          <ConfirmDialog
+            isOpen={isConfirmOpen}
+            message="정말 삭제하시겠습니까?"
+            onConfirm={() => setIsConfirmOpen(false)}
+            onCancel={() => setIsConfirmOpen(false)}
+          />
+        </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 3 — TicketCard, TicketForm */}
-      <PreviewSection title="Phase 3: TicketCard / TicketForm">
-        <EmptyPlaceholder note="src/client/components/ticket/TicketCard.tsx, TicketForm.tsx 구현 후 여기에 렌더링" />
+      {/* Phase 3 — 티켓 도메인 리프 (TicketCard, TicketForm) */}
+      <PreviewSection title="Phase 3: 티켓 도메인 리프">
+        <ComponentGroup name="TicketCard">
+          <EmptyPlaceholder note="src/client/components/ticket/TicketCard.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
+        <ComponentGroup name="TicketForm">
+          <EmptyPlaceholder note="src/client/components/ticket/TicketForm.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 4 — TicketModal, ColumnHeader */}
-      <PreviewSection title="Phase 4: TicketModal / ColumnHeader">
-        <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx, board/ColumnHeader.tsx 구현 후 여기에 렌더링" />
+      {/* Phase 4 — 모달 / 칼럼 헤더 (TicketModal, ColumnHeader) */}
+      <PreviewSection title="Phase 4: 모달 / 칼럼 헤더">
+        <ComponentGroup name="TicketModal">
+          <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
+        <ComponentGroup name="ColumnHeader">
+          <EmptyPlaceholder note="src/client/components/board/ColumnHeader.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
       </PreviewSection>
 
       {/* Phase 5 — Column */}
       <PreviewSection title="Phase 5: Column">
-        <EmptyPlaceholder note="src/client/components/board/Column.tsx 구현 후 여기에 렌더링" />
+        <ComponentGroup name="Column">
+          <EmptyPlaceholder note="src/client/components/board/Column.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 7 — BoardHeader, FilterBar (Phase 6은 UI가 아니므로 프리뷰 대상 아님) */}
-      <PreviewSection title="Phase 7: BoardHeader / FilterBar">
-        <EmptyPlaceholder note="src/client/components/board/BoardHeader.tsx, FilterBar.tsx 구현 후 여기에 렌더링" />
+      {/* Phase 7 — 헤더 / 필터 (BoardHeader, FilterBar) (Phase 6은 UI가 아니므로 프리뷰 대상 아님) */}
+      <PreviewSection title="Phase 7: 헤더 / 필터">
+        <ComponentGroup name="BoardHeader">
+          <EmptyPlaceholder note="src/client/components/board/BoardHeader.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
+        <ComponentGroup name="FilterBar">
+          <EmptyPlaceholder note="src/client/components/board/FilterBar.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
       </PreviewSection>
 
       {/* Phase 8 — Board */}
-      <PreviewSection title="Phase 8: Board">
-        <EmptyPlaceholder note="src/client/components/board/Board.tsx 구현 후 여기에 렌더링" />
+      <PreviewSection title="Phase 8: Board (DnD 통합)">
+        <ComponentGroup name="Board">
+          <EmptyPlaceholder note="src/client/components/board/Board.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 9 — BoardContainer */}
-      <PreviewSection title="Phase 9: BoardContainer">
-        <EmptyPlaceholder note="src/client/components/board/BoardContainer.tsx 구현 후 여기에 렌더링" />
+      {/* Phase 9 — 컨테이너 + 페이지 (BoardContainer) */}
+      <PreviewSection title="Phase 9: 컨테이너">
+        <ComponentGroup name="BoardContainer">
+          <EmptyPlaceholder note="src/client/components/board/BoardContainer.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
       </PreviewSection>
     </main>
   );

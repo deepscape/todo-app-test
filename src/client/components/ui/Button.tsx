@@ -14,15 +14,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-text-inverse hover:bg-brand-hover',
-  secondary: 'bg-neutral text-text-primary hover:bg-neutral-hover',
+  // board 배경(--color-board-bg)과 neutral 배경이 같은 색이라 테두리로
+  // 구분한다 — 색만으로는 버튼이 배경에 묻혀 보이지 않는다.
+  secondary:
+    'bg-neutral text-text-primary border border-neutral-border hover:bg-neutral-hover',
   danger: 'bg-danger text-text-inverse hover:bg-danger-hover',
   ghost: 'bg-transparent text-brand hover:bg-brand-subtle',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: 'text-sm px-2 py-1',
-  md: 'text-base px-3 py-1.5',
-  lg: 'text-lg px-4 py-2',
+  sm: 'text-sm px-3 py-1.5',
+  md: 'text-sm px-4 py-2',
+  lg: 'text-base px-5 py-2.5',
 };
 
 export function Button({
