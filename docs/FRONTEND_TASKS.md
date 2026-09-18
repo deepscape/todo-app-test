@@ -1,4 +1,4 @@
-# Tika - 프론트엔드 구현 계획 (FRONTEND_TASK.md)
+# Tika - 프론트엔드 구현 계획 (FRONTEND_TASKS.md)
 
 > `docs/COMPONENT_SPEC.md` 기반 bottom-up 구현 계획.
 > 백엔드 7개 API는 이미 구현/테스트 완료 상태 (`docs/API_SPEC.md`,
@@ -26,72 +26,67 @@
   `__tests__/components/`, `__tests__/hooks/`.
 - **Props/타입**: 모두 `docs/COMPONENT_SPEC.md`에 정의된 그대로 따른다
   — 이 문서에서 임의로 확장하지 않는다.
+- **시각 확인**: 각 Phase 완료 시 `app/preview/page.tsx`의 해당 섹션에
+  실제 컴포넌트를 목 데이터로 연결해 `npm run dev` → `/preview`에서
+  육안으로 확인한다.
 
 ---
 
-## 1. 의존성 그래프
+## 1. Phase 개요
+
+| Phase | 이름 | 포함 컴포넌트 | 상태 |
+|---|---|---|---|
+| 1 | 기본 UI 컴포넌트 | PriorityBadge, DueDateBadge, Button, Modal, ConfirmDialog | ✅ 완료 |
+| 2 | Board 컴포넌트 | TicketCard, ColumnHeader, Column, Board | ✅ 완료 |
+| 3 | 입력폼과 모달 | TicketForm, TicketModal | 예정 |
+| 4 | 데이터 레이어 | ticketApi, useTickets | 예정 (Phase 1~3과 독립적, 병행 가능) |
+| 5 | 헤더 / 필터 | BoardHeader, FilterBar | 예정 |
+| 6 | 컨테이너 | BoardContainer, `app/(board)/page.tsx` | 예정 (Phase 3~5 완료 후) |
+
+---
+
+## 2. 의존성 그래프
 
 ```
-Level 0 (순수 UI, 의존성 없음)
-├── Badge
-└── Button
+Phase 1 — 기본 UI 컴포넌트 (의존성 없음, globals.css 토큰만 필요)
+├── PriorityBadge
+├── DueDateBadge
+├── Button
+├── Modal
+└── ConfirmDialog          → Button, Modal
 
-Level 1 (Level 0 사용)
-├── Modal              (독립적, Level 0 미사용이지만 같은 레벨로 묶음)
-└── ConfirmDialog       → Button
+Phase 2 — Board 컴포넌트 (Phase 1에 의존)
+├── TicketCard              → PriorityBadge, DueDateBadge, @dnd-kit/sortable
+├── ColumnHeader             (독립적 소형 컴포넌트)
+├── Column                  → TicketCard, ColumnHeader, @dnd-kit/sortable, @dnd-kit/core
+└── Board                   → Column, @dnd-kit/core (DndContext, DragOverlay)
 
-Level 2 (도메인 리프 컴포넌트)
-├── TicketCard          → Badge
-└── TicketForm          → Button, src/shared/validations/ticket.ts (Zod)
+Phase 3 — 입력폼과 모달 (Phase 1, 2에 의존)
+├── TicketForm              → Button, src/shared/validations/ticket.ts (Zod)
+└── TicketModal              → Modal, TicketForm, ConfirmDialog, Button
+                              (+ TicketDetailView: TicketModal 내부 서브파트)
 
-Level 3 (Level 1+2 조합)
-├── ColumnHeader         (독립적 소형 컴포넌트, Badge 스타일 재사용 가능)
-└── TicketModal          → Modal, TicketForm, ConfirmDialog, Button
-                           (+ TicketDetailView: TicketModal 내부 서브파트)
+Phase 4 — 데이터 레이어 (Phase 1~3과 독립적, 언제든 병행 가능)
+├── ticketApi                → src/shared/types, fetch
+└── useTickets                → ticketApi
 
-Level 4
-└── Column               → TicketCard, ColumnHeader, @dnd-kit/sortable
+Phase 5 — 헤더 / 필터 (Phase 1에만 의존, Phase 2~4와 병행 가능)
+├── BoardHeader              → Button
+└── FilterBar                 (독립적, Phase 1 스타일만 사용)
 
-Level 5 (상태/통신 레이어 — UI 트리와 독립적으로 병행 개발 가능)
-├── ticketApi            → src/shared/types, fetch
-└── useTickets            → ticketApi
-
-Level 6
-├── FilterBar             (독립적, Level 0 스타일만 사용)
-└── BoardHeader           → Button
-
-Level 7
-└── Board                 → Column, @dnd-kit/core (DndContext, DragOverlay)
-
-Level 8 (컨테이너)
-└── BoardContainer         → Board, BoardHeader, FilterBar, TicketModal,
-                              useTickets
-
-Level 9 (엔트리)
-└── app/(board)/page.tsx    → BoardContainer (서버 컴포넌트, 초기 데이터 fetch)
+Phase 6 — 컨테이너 (Phase 2~5 전부 필요)
+├── BoardContainer            → Board, BoardHeader, FilterBar, TicketModal, useTickets
+└── app/(board)/page.tsx      → BoardContainer (서버 컴포넌트, 초기 데이터 fetch)
 ```
 
-**병렬 진행 가능 지점**: Level 5(useTickets/ticketApi)는 Level 0~4의 UI
+**병렬 진행 가능 지점**: Phase 4(useTickets/ticketApi)는 Phase 1~3의 UI
 트리와 데이터/타입 계약(`TicketWithMeta`, `BoardData`)만 공유하고 실제
 렌더 의존성은 없으므로, UI를 만드는 동안 별도로 병행 개발해도 무방하다.
-다만 이 문서는 순서를 단순하게 유지하기 위해 UI를 먼저 끝낸 뒤 Hook을
-배치했다 — 팀 상황에 따라 Phase 3와 Phase 5를 맞바꿔도 문제없다.
+Phase 5(헤더/필터)도 Phase 1만 있으면 시작 가능해 Phase 2~4와 병행할 수
+있다. Phase 6(컨테이너)만 나머지 전부를 필요로 하는 합류 지점이다.
 
----
-
-## 2. Phase 그룹핑
-
-| Phase | 이름 | 포함 컴포넌트 | 선행 조건 |
-|---|---|---|---|
-| 1 | 공통 프리미티브 | Badge, Button | 없음 (globals.css 토큰만 필요, 완료됨) |
-| 2 | 공통 오버레이 | Modal, ConfirmDialog | Phase 1 |
-| 3 | 티켓 도메인 리프 | TicketCard, TicketForm | Phase 1 |
-| 4 | 모달/칼럼 헤더 | TicketModal(+TicketDetailView), ColumnHeader | Phase 2, 3 |
-| 5 | 칼럼 | Column | Phase 4 (TicketCard, ColumnHeader) |
-| 6 | 데이터 레이어 | ticketApi, useTickets | 없음 (Phase 1~5와 독립적, 병행 가능) |
-| 7 | 헤더/필터 | BoardHeader, FilterBar | Phase 1 |
-| 8 | 보드 + DnD | Board | Phase 5 |
-| 9 | 컨테이너 + 페이지 | BoardContainer, page.tsx | Phase 6, 7, 8 |
+**최소 크리티컬 패스**: 1 → 2 → 3 → 6 (Phase 4, 5는 이 경로와 병행
+가능하지만 늦어도 Phase 6 시작 전에는 완료되어야 한다).
 
 ---
 
@@ -99,26 +94,27 @@ Level 9 (엔트리)
 
 각 컴포넌트 항목은 COMPONENT_SPEC.md의 원문 스펙을 그대로 인용하며,
 테스트는 React Testing Library + `@testing-library/user-event` 기준으로
-작성한다 (`__tests__/components/<name>.test.tsx`).
+작성한다 (`__tests__/components/<name>.test.tsx`). `@dnd-kit/core`,
+`@dnd-kit/sortable`, `@dnd-kit/utilities`를 사용하는 컴포넌트는
+`jest.mock`으로 대체해 DndContext 없이도 단독 렌더 테스트가 가능하게
+한다 — 실제 드래그 동작 자체는 Phase 6 이후 수동 브라우저 검증으로
+커버한다 (아래 각 Phase 완료 기준 참고).
 
-### Phase 1 — 공통 프리미티브
+### Phase 1 — 기본 UI 컴포넌트 ✅
 
-#### 1.1 Badge
+#### 1.1 PriorityBadge / DueDateBadge
 
-**파일**: `src/client/components/ui/Badge.tsx`
-**스펙**: 우선순위 표시 LOW(회색)/MEDIUM(파란색)/HIGH(빨간색), 작은 텍스트
-+ 둥근 패딩. `app/globals.css`의 `--color-priority-{low,medium,high}-{bg,text}`
-토큰을 사용한다.
+**파일**: `src/client/components/ui/PriorityBadge.tsx`,
+`src/client/components/ui/DueDateBadge.tsx`
+**스펙**: 우선순위 표시 LOW(회색)/MEDIUM(파란색)/HIGH(빨간색), 종료예정일
+(YYYY-MM-DD) + 오버듀 강조. `app/globals.css`의
+`--color-priority-{low,medium,high}-{bg,text}`, `--color-overdue` 토큰을
+사용한다. `PriorityBadge`는 `data-priority` 속성을 노출한다(TicketCard
+C001-7에서 상태 속성 기반 검증에 사용).
 
-**TDD 체크리스트**:
-- [ ] Red: `priority="LOW"` 렌더 시 `bg-priority-low-bg` 클래스와 텍스트
-      "LOW" 노출을 기대하는 테스트 작성 → 컴포넌트 없어 실패 확인
-- [ ] Red: `priority="MEDIUM"` → `bg-priority-medium-bg` 클래스 테스트
-- [ ] Red: `priority="HIGH"` → `bg-priority-high-bg` 클래스 테스트
-- [ ] Green: `TicketPriority`를 prop으로 받는 최소 구현
-- [ ] Refactor: 색상 매핑을 `Record<TicketPriority, string>` 상수로 추출
-- [ ] 시각 확인: `npm run dev`로 3가지 우선순위 뱃지가 스펙 색상과
-      일치하는지 육안 확인
+**완료**: 4 + 5 tests. `docs/TEST_CASES.md`에 이 두 컴포넌트를 위한 전용
+TC는 없으며(TicketCard TC-COMP-001의 일부로 다뤄짐), 독립 컴포넌트로
+분리한 만큼 자체 테스트도 별도로 둔다.
 
 #### 1.2 Button
 
@@ -126,96 +122,85 @@ Level 9 (엔트리)
 **스펙**: variant(primary/secondary/danger/ghost), size(sm/md/lg), 로딩
 상태 지원.
 
-**TDD 체크리스트**:
-- [ ] Red: 기본 렌더 시 children 텍스트 노출 테스트
-- [ ] Red: `variant="danger"` → `bg-danger` 클래스 포함 테스트
-- [ ] Red: `isLoading` → 버튼 `disabled` 속성 + 로딩 인디케이터(예:
-      `role="status"` 또는 스피너 요소) 노출 테스트
-- [ ] Red: `onClick` 핸들러가 클릭 시 호출되는지 `userEvent.click` 테스트
-- [ ] Red: `isLoading`일 때 `onClick`이 호출되지 않는지 테스트
-- [ ] Green: 4개 variant × 3개 size 클래스 매핑 + loading/disabled 로직
-      구현
-- [ ] Refactor: variant/size 클래스 매핑을 별도 상수 객체로 추출
+**완료**: 16 tests. secondary variant는 board 배경과 동색이라 테두리
+(`border-neutral-border`)로 구분하도록 수정됨; size 스케일은 패딩
+중심으로 절제된 단계감을 갖도록 조정됨 (커밋 이력 참고).
 
-**Phase 1 완료 기준**: `npm run test -- __tests__/components/Badge
-__tests__/components/Button` 전부 통과, `npx tsc --noEmit` 통과.
+#### 1.3 Modal / ConfirmDialog
 
----
+**파일**: `src/client/components/ui/Modal.tsx`,
+`src/client/components/ui/ConfirmDialog.tsx`
+**스펙**: Modal — 오버레이 + 중앙 정렬, ESC/바깥 클릭 닫기, body 스크롤
+잠금, `role="dialog"`. ConfirmDialog — Modal + Button(danger variant)
+조합.
 
-### Phase 2 — 공통 오버레이
+**완료**: 7 + 5 tests.
 
-#### 2.1 Modal
-
-**파일**: `src/client/components/ui/Modal.tsx`
-**스펙**: 오버레이 + 중앙 정렬 컨테이너, ESC 닫기, 바깥 클릭 닫기,
-열림/닫힘 애니메이션, body 스크롤 잠금.
-
-**TDD 체크리스트**:
-- [ ] Red: `isOpen=false`일 때 내용이 DOM에 없거나 보이지 않음을 확인하는
-      테스트
-- [ ] Red: `isOpen=true`일 때 children이 렌더되는 테스트
-- [ ] Red: ESC 키 입력(`userEvent.keyboard('{Escape}')`) 시 `onClose` 호출
-      테스트
-- [ ] Red: 오버레이(바깥 영역) 클릭 시 `onClose` 호출, 모달 컨텐츠 내부
-      클릭 시는 호출되지 않는 테스트(이벤트 버블링 구분)
-- [ ] Red: 열려있는 동안 `document.body.style.overflow`가 `hidden`으로
-      설정되고, 닫히면 원복되는 테스트
-- [ ] Green: 최소 구현 (오버레이 div + 이벤트 리스너 + body 스크롤 잠금
-      useEffect)
-- [ ] Refactor: 애니메이션은 Tailwind transition 유틸리티로 정리
-
-#### 2.2 ConfirmDialog
-
-**파일**: `src/client/components/ui/ConfirmDialog.tsx`
-**스펙**: "정말 삭제하시겠습니까?" 확인 다이얼로그, 확인/취소 버튼, 위험
-동작은 빨간색 확인 버튼. (Modal을 내부적으로 사용)
-
-**TDD 체크리스트**:
-- [ ] Red: 메시지 텍스트 prop이 그대로 렌더되는 테스트
-- [ ] Red: "확인" 버튼 클릭 시 `onConfirm` 호출 테스트
-- [ ] Red: "취소" 버튼 클릭 시 `onCancel` 호출, `onConfirm`은 호출 안 됨
-      테스트
-- [ ] Red: 확인 버튼이 `Button` variant="danger"로 렌더되는지(danger 클래스
-      확인) 테스트
-- [ ] Green: Modal + Button(Phase 1) 조합으로 최소 구현
-- [ ] Refactor: 없음 (소형 컴포넌트)
-
-**Phase 2 완료 기준**: 해당 테스트 전부 통과, Modal이 이후 TicketModal에서
-재사용 가능한 형태인지(children, isOpen, onClose props) 검토.
+**Phase 1 완료 기준**: ✅ 전 항목 통과. `npm run test --
+__tests__/components/PriorityBadge __tests__/components/DueDateBadge
+__tests__/components/Button __tests__/components/Modal
+__tests__/components/ConfirmDialog`, `npx tsc --noEmit` 통과.
 
 ---
 
-### Phase 3 — 티켓 도메인 리프
+### Phase 2 — Board 컴포넌트 ✅
 
-#### 3.1 TicketCard
+#### 2.1 TicketCard
 
 **파일**: `src/client/components/ticket/TicketCard.tsx`
-**스펙**: 제목(1줄 말줄임), 우선순위 뱃지, 종료예정일(YYYY-MM-DD), 오버듀
-표시(빨간 테두리/아이콘). `useSortable`로 드래그 가능(이 Phase에서는 DnD
-컨텍스트 없이 단독 렌더 테스트만 — 실제 드래그 동작 검증은 Phase 8
-Column/Board 통합 단계에서). 클릭 시 `onClick` 호출(드래그와 클릭 구분).
-`role="button"`, `aria-label="티켓: {title}"`, 키보드 포커스+Enter.
+**스펙**: `docs/TEST_CASES.md` TC-COMP-001. 제목(1줄 말줄임), 우선순위
+뱃지, 종료예정일, 오버듀 표시(`data-overdue` 속성), 완료 상태
+(`ticket-card--done` 클래스), 클릭 시 `onClick`, `role="button"`,
+`aria-label="티켓: {title}"`, 키보드 Enter/Space.
 
-**TDD 체크리스트**:
-- [ ] Red: `ticket.title`이 렌더되는 테스트
-- [ ] Red: `ticket.priority`에 따라 Badge가 올바른 색상으로 렌더되는 테스트
-      (Phase 1 Badge 재사용 확인)
-- [ ] Red: `ticket.dueDate`가 있으면 YYYY-MM-DD 형식으로 노출, 없으면
-      노출 안 됨 테스트
-- [ ] Red: `ticket.isOverdue === true`일 때 오버듀 시각 표시(예:
-      `border-overdue` 클래스 또는 특정 아이콘 요소) 테스트
-- [ ] Red: 클릭 시 `onClick` 호출 테스트
-- [ ] Red: `role="button"`, `aria-label`이 "티켓: {title}" 형식인지 테스트
-- [ ] Red: Tab으로 포커스 가능 + Enter 키 입력 시 `onClick` 호출 테스트
-      (`userEvent.tab()` + `userEvent.keyboard('{Enter}')`)
-- [ ] Green: 최소 구현 (`useSortable` 훅 연결은 하되, 이 Phase의 테스트는
-      DndContext 없이 렌더만 검증 — `useSortable`이 Provider 없이도 크래시
-      하지 않는지 확인 필요, 크래시하면 테스트를 `DndContext`로 감싸는
-      테스트 헬퍼 추가)
-- [ ] Refactor: 오버듀 스타일과 일반 스타일 분기를 className 유틸 함수로
-      정리
+**완료**: 13 tests (TC-COMP-001 C001-1~7 전체 커버). `useSortable`을
+연결하되 테스트에서는 `@dnd-kit/sortable`/`@dnd-kit/utilities`를 mock.
+`.ticket-card`, `.ticket-card--done`, `.ticket-card--dragging`,
+`[data-overdue='true']`를 `app/globals.css`의 `@layer components`에
+추가 (컴포넌트 클래스는 `.tsx`에서 Tailwind 유틸리티로 구현한다는 기본
+원칙의 의도적 예외 — 상태 조합이 반복되는 경우로 한정).
 
-#### 3.2 TicketForm
+#### 2.2 ColumnHeader
+
+**파일**: `src/client/components/board/ColumnHeader.tsx`
+**스펙**: 칼럼명(`label`) + 티켓 수(`count`) 뱃지 표시. Column 스펙의
+헤더 요구사항을 분리한 소형 컴포넌트.
+
+**완료**: 4 tests.
+
+#### 2.3 Column
+
+**파일**: `src/client/components/board/Column.tsx`
+**스펙**: `docs/TEST_CASES.md` TC-COMP-002. `SortableContext` +
+`useDroppable`, 빈 상태 안내("이 칼럼에 티켓이 없습니다"), BACKLOG는
+사이드바 스타일(`column--sidebar`, `app/globals.css` `@layer
+components`에 정의: 고정 폭 280px + 자체 스크롤), DONE은 서버가 이미
+24시간 필터링해서 내려주므로 그대로 렌더.
+
+**완료**: 8 tests (TC-COMP-002 C002-1~3 + 추가 케이스).
+
+#### 2.4 Board
+
+**파일**: `src/client/components/board/Board.tsx`
+**스펙**: `docs/TEST_CASES.md` TC-COMP-003. `DndContext`+`DragOverlay`로
+전체 감싸기, Backlog 사이드바 + TODO/IN_PROGRESS/DONE 3칼럼 그리드,
+반응형(Tailwind `md:`/`lg:` 브레이크포인트 — NFR-002).
+
+**완료**: 4 tests (TC-COMP-003 C003-1~2 + 클릭 전파/데이터 분리 확인).
+실제 드래그 이벤트 핸들링(`onDragStart`/`onDragEnd`)은 Phase 6
+BoardContainer가 담당 — Board 자신은 레이아웃과 클릭 전파만 검증됨.
+
+**Phase 2 완료 기준**: ✅ 전 항목 통과. `npm run test --
+__tests__/components/TicketCard __tests__/components/ColumnHeader
+__tests__/components/Column __tests__/components/Board`, `npx tsc
+--noEmit` 통과. `/preview` Phase 2 섹션에서 4칼럼 레이아웃과 다양한
+티켓 상태(HIGH 우선순위, 오버듀, 완료, 긴 제목)를 육안 확인 완료.
+
+---
+
+### Phase 3 — 입력폼과 모달
+
+#### 3.1 TicketForm
 
 **파일**: `src/client/components/ticket/TicketForm.tsx`
 **스펙**: mode(create/edit), 필드 5개(title/description/priority/
@@ -247,21 +232,12 @@ plannedStartDate/dueDate), 클라이언트 Zod 검증(`src/shared/validations/ti
 - [ ] Refactor: 필드별 에러 상태를 하나의 객체로 통합, Zod
       `safeParse`의 `error.errors`를 필드별로 매핑하는 헬퍼 추출
 
-**Phase 3 완료 기준**: 두 컴포넌트 테스트 전부 통과, `docs/TEST_CASES.md`의
-TC-COMP-001(TicketCard), TC-COMP-004(TicketForm) 대응 여부 확인 (해당
-문서에 상세 케이스가 없다면 이 체크리스트가 사실상 그 역할을 대체함을
-인지).
-
----
-
-### Phase 4 — 모달 / 칼럼 헤더
-
-#### 4.1 TicketModal (+ TicketDetailView)
+#### 3.2 TicketModal (+ TicketDetailView)
 
 **파일**: `src/client/components/ticket/TicketModal.tsx`
-**스펙**: Modal 기반, 9개 필드 표시(편집 가능 5개 + 읽기전용 4개: status/
-startedAt/completedAt/createdAt), 인라인 편집, 삭제 시 ConfirmDialog,
-onUpdate/onDelete 호출.
+**스펙**: `docs/TEST_CASES.md` TC-COMP-005. Modal 기반, 9개 필드 표시
+(편집 가능 5개 + 읽기전용 4개: status/startedAt/completedAt/createdAt),
+인라인 편집, 삭제 시 ConfirmDialog, onUpdate/onDelete 호출.
 
 **TDD 체크리스트**:
 - [ ] Red: `isOpen=true`일 때 title/description/priority/plannedStartDate
@@ -282,57 +258,15 @@ onUpdate/onDelete 호출.
       분리할지 검토 — COMPONENT_SPEC.md 계층도에는 별도 노드로 존재하므로
       분리 권장
 
-#### 4.2 ColumnHeader
-
-**파일**: `src/client/components/board/ColumnHeader.tsx`
-(COMPONENT_SPEC.md 계층도에는 명시되어 있으나 별도 절 없음 — Column
-스펙의 "칼럼 헤더에 칼럼명 + 티켓 수 뱃지 표시" 요구사항을 이 컴포넌트로
-분리)
-
-**TDD 체크리스트**:
-- [ ] Red: `label`(칼럼명) prop이 렌더되는 테스트
-- [ ] Red: `count`(티켓 수) prop이 뱃지 형태로 렌더되는 테스트
-- [ ] Green: 최소 구현
-- [ ] Refactor: 없음 (소형 컴포넌트)
-
-**Phase 4 완료 기준**: TicketModal 테스트 전부 통과, TC-COMP-005
-(TicketModal) 대응.
+**Phase 3 완료 기준**: 두 컴포넌트 테스트 전부 통과, TC-COMP-004
+(TicketForm), TC-COMP-005(TicketModal) 대응 확인. `/preview` Phase 3
+섹션에 생성/수정 폼과 상세 모달을 목 데이터로 연결해 육안 확인.
 
 ---
 
-### Phase 5 — Column
+### Phase 4 — 데이터 레이어 (Phase 1~3과 독립적, 병행 가능)
 
-**파일**: `src/client/components/board/Column.tsx`
-**스펙**: `SortableContext` + `useDroppable`, 빈 상태 안내 문구, 칼럼별
-특수 동작(BACKLOG=사이드바 스타일, DONE=서버가 이미 24시간 필터링해서
-내려주므로 프론트는 받은 그대로 렌더).
-
-**TDD 체크리스트**:
-- [ ] Red: `tickets` 배열의 각 항목이 TicketCard로 렌더되는 테스트 (DnD
-      컨텍스트 필요 — 테스트 헬퍼로 `DndContext`+`SortableContext` 래퍼
-      작성)
-- [ ] Red: `tickets=[]`일 때 "이 칼럼에 티켓이 없습니다" 안내 텍스트
-      노출 테스트
-- [ ] Red: ColumnHeader에 `status`에 대응하는 칼럼명(`COLUMN_LABELS`)과
-      `tickets.length`가 전달되는 테스트
-- [ ] Red: TicketCard 클릭 시 `onTicketClick(ticket)`이 해당 티켓으로
-      호출되는 테스트
-- [ ] Green: 최소 구현 (SortableContext 아이템 id 배열은 `tickets.map(t
-      => t.id)`)
-- [ ] Refactor: BACKLOG 전용 스타일 분기를 className 유틸로 정리
-
-**Phase 5 완료 기준**: DnD 컨텍스트 안에서 Column이 정상 렌더/클릭 동작함을
-테스트로 확인. 실제 드래그 앤 드롭 자체(포인터 이벤트 시뮬레이션)는 이
-Phase에서 검증하지 않는다 — jsdom에서 `@dnd-kit`의 포인터 센서를 완전히
-시뮬레이션하는 것은 비용 대비 실익이 낮으므로, 드래그 로직 검증은
-useTickets(Phase 6)의 순수 함수 단위 테스트 + Phase 9 수동 브라우저
-검증으로 커버한다.
-
----
-
-### Phase 6 — 데이터 레이어 (UI와 독립적으로 병행 가능)
-
-#### 6.1 ticketApi
+#### 4.1 ticketApi
 
 **파일**: `src/client/api/ticketApi.ts`
 **스펙**: 모든 API 호출을 이 모듈로 일원화. `CLAUDE.md`의 API 호출 패턴
@@ -354,7 +288,7 @@ useTickets(Phase 6)의 순수 함수 단위 테스트 + Phase 9 수동 브라우
 - [ ] Green: `fetch` 래퍼 함수들 구현
 - [ ] Refactor: 공통 요청/에러 처리 로직을 내부 헬퍼로 추출 (중복 제거)
 
-#### 6.2 useTickets
+#### 4.2 useTickets
 
 **파일**: `src/client/hooks/useTickets.ts`
 **스펙**: `UseTicketsReturn` 인터페이스(board, isLoading, error,
@@ -381,16 +315,16 @@ create/update/remove/reorder/complete), 낙관적 업데이트 패턴(백업→�
 - [ ] Refactor: 낙관적 업데이트 공통 로직(백업/롤백)을 내부 헬퍼로 추출해
       5개 액션 간 중복 제거
 
-**Phase 6 완료 기준**: `npm run test -- __tests__/hooks
+**Phase 4 완료 기준**: `npm run test -- __tests__/hooks
 __tests__/api-client`(또는 실제 배치한 경로) 전부 통과. 이 Phase는 UI
-Phase 1~5와 파일/모듈이 겹치지 않으므로 어느 시점에 진행해도 무방하나,
-Phase 9(BoardContainer)는 이 Phase 완료를 반드시 선행해야 한다.
+Phase 1~3과 파일/모듈이 겹치지 않으므로 어느 시점에 진행해도 무방하나,
+Phase 6(BoardContainer)는 이 Phase 완료를 반드시 선행해야 한다.
 
 ---
 
-### Phase 7 — 헤더 / 필터
+### Phase 5 — 헤더 / 필터
 
-#### 7.1 BoardHeader
+#### 5.1 BoardHeader
 
 **파일**: `src/client/components/board/BoardHeader.tsx`
 **스펙**: SearchInput(2차, 비활성 placeholder), CreateTicketButton(클릭
@@ -403,7 +337,7 @@ Phase 9(BoardContainer)는 이 Phase 완료를 반드시 선행해야 한다.
 - [ ] Green: 최소 구현 (Button 재사용)
 - [ ] Refactor: 없음
 
-#### 7.2 FilterBar
+#### 5.2 FilterBar
 
 **파일**: `src/client/components/board/FilterBar.tsx`
 **스펙**: activeFilter, onFilterChange, counts({thisWeek, overdue}), 토글
@@ -429,40 +363,14 @@ Phase 9(BoardContainer)는 이 Phase 완료를 반드시 선행해야 한다.
 - [ ] Refactor: 필터 로직 함수를 `src/client/components/board/filters.ts`
       등으로 분리해 단위 테스트 용이성 확보
 
-**Phase 7 완료 기준**: 두 컴포넌트 테스트 전부 통과.
+**Phase 5 완료 기준**: 두 컴포넌트 테스트 전부 통과. `/preview` Phase 5
+섹션에서 필터 토글 동작을 목 데이터로 육안 확인.
 
 ---
 
-### Phase 8 — Board (DnD 통합)
+### Phase 6 — 컨테이너
 
-**파일**: `src/client/components/board/Board.tsx`
-**스펙**: DndContext+DragOverlay로 전체 감싸기, Backlog 사이드바 + 3칼럼
-그리드 배치, 반응형(데스크톱 4칼럼/태블릿 2칼럼+Backlog 접기/모바일
-단일+탭전환 — NFR-002).
-
-**TDD 체크리스트**:
-- [ ] Red: `board` prop의 4개 칼럼이 각각 Column으로 렌더되는 테스트
-- [ ] Red: TicketCard 클릭이 `onTicketClick`까지 전파되는 테스트(Board→
-      Column→TicketCard 통합 확인)
-- [ ] Red: `onDragStart` 발생 시 DragOverlay에 드래그 중인 카드가 표시되는
-      테스트 (`@dnd-kit/core`의 테스트 유틸 또는 수동 이벤트 dispatch 필요
-      — 어려우면 이 항목은 "구현 후 수동 브라우저 검증"으로 대체하고
-      체크리스트에 그 사실을 명시)
-- [ ] Green: 최소 구현
-- [ ] Refactor: 반응형 레이아웃 클래스를 Tailwind 브레이크포인트
-      (`md:`, `lg:`)로 정리
-
-**Phase 8 완료 기준**: 렌더/클릭 전파 테스트 통과. 드래그 자체의 최종
-검증은 Phase 9 이후 실제 브라우저 수동 테스트(`npm run dev`)로 수행한다
-— jsdom 환경에서 포인터 센서 기반 DnD 전체 흐름을 신뢰성 있게
-시뮬레이션하기 어렵다는 `@dnd-kit` 자체의 알려진 테스트 한계를 반영한
-현실적 범위 설정이다.
-
----
-
-### Phase 9 — 컨테이너 + 페이지
-
-#### 9.1 BoardContainer
+#### 6.1 BoardContainer
 
 **파일**: `src/client/components/board/BoardContainer.tsx`
 **스펙**: `initialData` prop, 내부 상태 5종(board/activeTicket/
@@ -486,11 +394,11 @@ selectedTicket/isCreating/activeFilter), DndContext 이벤트 핸들링(대상
       테스트 (`activeFilter` 상태 → 필터 함수 적용 확인)
 - [ ] Red: TicketModal에서 삭제 확정 시 `useTickets.remove` 경유로 board에서
       제거되는 테스트
-- [ ] Green: Phase 1~8 컴포넌트 + Phase 6 useTickets를 조합해 구현
+- [ ] Green: Phase 1~5 컴포넌트 + Phase 4 useTickets를 조합해 구현
 - [ ] Refactor: onDragEnd의 분기 로직(Done 판별 등)을 별도 순수 함수로
       추출해 테스트 용이성 확보
 
-#### 9.2 app/(board)/page.tsx
+#### 6.2 app/(board)/page.tsx
 
 **파일**: `app/(board)/page.tsx` (기존 `<h1>Tika</h1>` 플레이스홀더 교체)
 **스펙**: 서버 컴포넌트, 초기 보드 데이터를 서버에서 fetch해
@@ -506,37 +414,12 @@ selectedTicket/isCreating/activeFilter), DndContext 이벤트 핸들링(대상
       실제로 동작하는지 (`docs/API_SPEC.md` 7개 엔드포인트 전부 UI를
       통해 왕복 확인)
 
-**Phase 9 완료 기준**: BoardContainer 테스트 전부 통과, `npm run build`
+**Phase 6 완료 기준**: BoardContainer 테스트 전부 통과, `npm run build`
 성공, 실제 브라우저 수동 검증(위 시나리오) 통과.
 
 ---
 
-## 4. 전체 실행 순서 요약
-
-```
-Phase 1 (Badge, Button)
-   ↓
-Phase 2 (Modal, ConfirmDialog)         Phase 6 (ticketApi, useTickets)
-   ↓                                    — Phase 1~5와 독립적, 아무 때나 병행 가능
-Phase 3 (TicketCard, TicketForm)
-   ↓
-Phase 4 (TicketModal, ColumnHeader)
-   ↓
-Phase 5 (Column)
-   ↓
-Phase 7 (BoardHeader, FilterBar)  ←── Phase 1만 있으면 충분, Phase 5와 병행 가능
-   ↓
-Phase 8 (Board)
-   ↓
-Phase 9 (BoardContainer, page.tsx)  ←── Phase 6, 7, 8 모두 필요
-```
-
-**최소 크리티컬 패스**: 1 → 2 → 3 → 4 → 5 → 8 → 9 (Phase 6, 7은 이
-경로와 병행 가능하지만 늦어도 Phase 9 시작 전에는 완료되어야 한다).
-
----
-
-## 5. 완료 정의 (Definition of Done, 전체 공통)
+## 4. 완료 정의 (Definition of Done, 전체 공통)
 
 각 Phase 완료 시 다음을 모두 만족해야 다음 Phase로 진행한다
 (`CLAUDE.md` 커밋 전 체크리스트와 동일 기준을 컴포넌트 단위로 적용):
@@ -549,7 +432,9 @@ Phase 9 (BoardContainer, page.tsx)  ←── Phase 6, 7, 8 모두 필요
 - [ ] `npm run lint` 통과
 - [ ] Props/타입이 `docs/COMPONENT_SPEC.md`와 일치 (임의 확장 없음)
 - [ ] 커밋 전 `console.log` 제거 확인
+- [ ] `app/preview/page.tsx`의 해당 Phase 섹션에 실제 컴포넌트를 목
+      데이터로 연결해 육안 확인
 
-Phase 8, 9는 추가로:
+Phase 6은 추가로:
 - [ ] `npm run build` 성공
 - [ ] 실제 브라우저(`npm run dev`)에서 수동 시각/동작 검증

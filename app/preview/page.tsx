@@ -22,8 +22,8 @@ import { Board } from '@/client/components/board/Board';
 import type { BoardData, TicketWithMeta } from '@/shared/types';
 
 // TicketCard는 useSortable을 쓰므로 DndContext+SortableContext 없이는
-// 렌더할 수 없다. 프리뷰 전용 최소 래퍼 — 실제 드래그 로직은 Phase 5
-// Column/Phase 8 Board에서 붙인다.
+// 렌더할 수 없다. 프리뷰 전용 최소 래퍼 — 실제 드래그 로직은 Phase 6
+// BoardContainer에서 붙인다.
 function SortableContextPreview({ children }: { children: React.ReactNode }) {
   return (
     <DndContext>
@@ -148,8 +148,8 @@ export default function PreviewPage() {
         </p>
       </header>
 
-      {/* Phase 1 — 공통 프리미티브 (Badge, Button) */}
-      <PreviewSection title="Phase 1-2: 공통 UI 컴포넌트 (src/client/components/ui/)">
+      {/* Phase 1 — 기본 UI 컴포넌트 (src/client/components/ui/) */}
+      <PreviewSection title="Phase 1: 기본 UI 컴포넌트">
         <ComponentGroup name="PriorityBadge">
           <PriorityBadge priority="LOW" />
           <PriorityBadge priority="MEDIUM" />
@@ -198,8 +198,8 @@ export default function PreviewPage() {
         </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 3 — 티켓 도메인 리프 (TicketCard, TicketForm) */}
-      <PreviewSection title="Phase 3: 티켓 도메인 리프">
+      {/* Phase 2 — Board 컴포넌트 (TicketCard, ColumnHeader, Column, Board) */}
+      <PreviewSection title="Phase 2: Board 컴포넌트">
         <ComponentGroup name="TicketCard">
           <SortableContextPreview>
             <div className="grid w-full grid-cols-2 gap-3">
@@ -239,16 +239,7 @@ export default function PreviewPage() {
             </div>
           </SortableContextPreview>
         </ComponentGroup>
-        <ComponentGroup name="TicketForm">
-          <EmptyPlaceholder note="src/client/components/ticket/TicketForm.tsx 구현 후 여기에 렌더링" />
-        </ComponentGroup>
-      </PreviewSection>
 
-      {/* Phase 4 — 모달 / 칼럼 헤더 (TicketModal, ColumnHeader) */}
-      <PreviewSection title="Phase 4: 모달 / 칼럼 헤더">
-        <ComponentGroup name="TicketModal">
-          <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx 구현 후 여기에 렌더링" />
-        </ComponentGroup>
         <ComponentGroup name="ColumnHeader">
           <div className="w-40">
             <ColumnHeader label="TODO" count={3} />
@@ -257,10 +248,7 @@ export default function PreviewPage() {
             <ColumnHeader label="Done" count={0} />
           </div>
         </ComponentGroup>
-      </PreviewSection>
 
-      {/* Phase 5 — Column */}
-      <PreviewSection title="Phase 5: Column">
         <ComponentGroup name="Column — 티켓 있음">
           <SortableContextPreview>
             <div className="w-64">
@@ -293,10 +281,29 @@ export default function PreviewPage() {
             />
           </SortableContextPreview>
         </ComponentGroup>
+
+        <ComponentGroup name="Board">
+          <div className="h-125 w-full overflow-auto">
+            <Board board={makePreviewBoard()} onTicketClick={() => {}} />
+          </div>
+        </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 7 — 헤더 / 필터 (BoardHeader, FilterBar) (Phase 6은 UI가 아니므로 프리뷰 대상 아님) */}
-      <PreviewSection title="Phase 7: 헤더 / 필터">
+      {/* Phase 3 — 입력폼과 모달 (TicketForm, TicketModal) */}
+      <PreviewSection title="Phase 3: 입력폼과 모달">
+        <ComponentGroup name="TicketForm">
+          <EmptyPlaceholder note="src/client/components/ticket/TicketForm.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
+        <ComponentGroup name="TicketModal">
+          <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx 구현 후 여기에 렌더링" />
+        </ComponentGroup>
+      </PreviewSection>
+
+      {/* Phase 4 — 데이터 레이어 (ticketApi, useTickets) 는 UI가 아니므로
+          프리뷰 대상 아님 */}
+
+      {/* Phase 5 — 헤더 / 필터 (BoardHeader, FilterBar) */}
+      <PreviewSection title="Phase 5: 헤더 / 필터">
         <ComponentGroup name="BoardHeader">
           <EmptyPlaceholder note="src/client/components/board/BoardHeader.tsx 구현 후 여기에 렌더링" />
         </ComponentGroup>
@@ -305,17 +312,8 @@ export default function PreviewPage() {
         </ComponentGroup>
       </PreviewSection>
 
-      {/* Phase 8 — Board */}
-      <PreviewSection title="Phase 8: Board (DnD 통합)">
-        <ComponentGroup name="Board">
-          <div className="h-125 w-full overflow-auto">
-            <Board board={makePreviewBoard()} onTicketClick={() => {}} />
-          </div>
-        </ComponentGroup>
-      </PreviewSection>
-
-      {/* Phase 9 — 컨테이너 + 페이지 (BoardContainer) */}
-      <PreviewSection title="Phase 9: 컨테이너">
+      {/* Phase 6 — 컨테이너 (BoardContainer) */}
+      <PreviewSection title="Phase 6: 컨테이너">
         <ComponentGroup name="BoardContainer">
           <EmptyPlaceholder note="src/client/components/board/BoardContainer.tsx 구현 후 여기에 렌더링" />
         </ComponentGroup>
