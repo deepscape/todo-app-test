@@ -166,4 +166,41 @@
     flex-shrink: 0;
     overflow-y: auto;
   }
+
+  /* 폼 필드(TicketForm, TC-COMP-004): 라벨 + 인풋 + 에러 메시지가
+     세 컴포넌트(TicketForm, 추후 TicketModal 내부 폼)에서 반복되는
+     조합이라 이름 붙은 클래스로 정의한다. */
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .form-field label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  /* text/textarea/select/date input 공통 스타일 — 요소 종류가 달라도
+     시각적으로 동일한 폼 컨트롤로 보이게 한다. */
+  .form-input {
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-neutral-border);
+    background-color: var(--color-card-bg);
+    color: var(--color-text-primary);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 2px var(--color-brand-subtle);
+  }
+
+  .form-error {
+    font-size: 0.875rem;
+    color: var(--color-danger);
+  }
 }

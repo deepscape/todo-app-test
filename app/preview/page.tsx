@@ -16,6 +16,7 @@ import { DueDateBadge } from '@/client/components/ui/DueDateBadge';
 import { Modal } from '@/client/components/ui/Modal';
 import { ConfirmDialog } from '@/client/components/ui/ConfirmDialog';
 import { TicketCard } from '@/client/components/ticket/TicketCard';
+import { TicketForm } from '@/client/components/ticket/TicketForm';
 import { ColumnHeader } from '@/client/components/board/ColumnHeader';
 import { Column } from '@/client/components/board/Column';
 import { Board } from '@/client/components/board/Board';
@@ -291,8 +292,40 @@ export default function PreviewPage() {
 
       {/* Phase 3 — 입력폼과 모달 (TicketForm, TicketModal) */}
       <PreviewSection title="Phase 3: 입력폼과 모달">
-        <ComponentGroup name="TicketForm">
-          <EmptyPlaceholder note="src/client/components/ticket/TicketForm.tsx 구현 후 여기에 렌더링" />
+        <ComponentGroup name="TicketForm — 생성 모드">
+          <div className="w-full max-w-md rounded-card border border-neutral-border bg-card-bg p-4">
+            <TicketForm
+              mode="create"
+              onSubmit={() => {}}
+              onCancel={() => {}}
+            />
+          </div>
+        </ComponentGroup>
+        <ComponentGroup name="TicketForm — 수정 모드">
+          <div className="w-full max-w-md rounded-card border border-neutral-border bg-card-bg p-4">
+            <TicketForm
+              mode="edit"
+              initialData={{
+                title: '기존 티켓 제목',
+                description: '기존 티켓 설명',
+                priority: 'HIGH',
+                plannedStartDate: '2026-10-01',
+                dueDate: '2026-10-31',
+              }}
+              onSubmit={() => {}}
+              onCancel={() => {}}
+            />
+          </div>
+        </ComponentGroup>
+        <ComponentGroup name="TicketForm — 로딩 상태">
+          <div className="w-full max-w-md rounded-card border border-neutral-border bg-card-bg p-4">
+            <TicketForm
+              mode="create"
+              isLoading
+              onSubmit={() => {}}
+              onCancel={() => {}}
+            />
+          </div>
         </ComponentGroup>
         <ComponentGroup name="TicketModal">
           <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx 구현 후 여기에 렌더링" />
