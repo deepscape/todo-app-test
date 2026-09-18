@@ -88,8 +88,11 @@
 
 /* ===========================================================
    Base layer — 전역/비컴포넌트 관심사만.
-   Badge/Button/Card/Modal 등 컴포넌트 레벨 클래스는 위 토큰을 사용해
+   Badge/Button/Modal 등 대부분의 컴포넌트 레벨 클래스는 위 토큰을 사용해
    각 .tsx 파일에서 Tailwind 유틸리티로 구현한다 (docs/COMPONENT_SPEC.md §3).
+   TicketCard의 .ticket-card 계열처럼 여러 상태(기본/완료/드래그 중)가
+   반복적으로 조합되는 경우는 예외적으로 아래 components 레이어에 이름
+   붙은 클래스로 정의한다.
    =========================================================== */
 @layer base {
   *,
@@ -110,5 +113,47 @@
       Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+}
+
+/* ===========================================================
+   Components layer — 여러 상태 조합이 반복되는 컴포넌트만 예외적으로
+   이름 붙은 클래스로 정의한다 (TicketCard, docs/TEST_CASES.md
+   TC-COMP-001). 그 외 컴포넌트는 계속 Tailwind 유틸리티를 직접 쓴다.
+   =========================================================== */
+@layer components {
+  .ticket-card {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+    transition:
+      box-shadow 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  .ticket-card:hover {
+    box-shadow: var(--shadow-card-dragging);
+  }
+
+  /* status=DONE (TC-COMP-001 C001-3): 완료된 티켓은 흐리게 처리해
+     대기/진행 중인 티켓과 시각적으로 구분한다. */
+  .ticket-card--done {
+    opacity: 0.6;
+  }
+
+  /* isOverdue=true (TC-COMP-001 C001-2): data-overdue 속성으로 제어 —
+     className 조합이 아닌 속성 셀렉터를 쓰는 이유는 오버듀가 상태
+     조합이 아니라 서버가 계산해 내려주는 단일 파생값이기 때문이다. */
+  .ticket-card[data-overdue='true'] {
+    border-color: var(--color-overdue);
+  }
+
+  /* useSortable의 isDragging과 연결해 드래그 중 카드에 적용한다
+     (Column/Board 단계에서 사용 — TicketCard는 opacity만 소비). */
+  .ticket-card--dragging {
+    opacity: 0.4;
+    box-shadow: var(--shadow-card-dragging);
   }
 }

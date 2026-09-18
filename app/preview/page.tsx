@@ -8,11 +8,47 @@
 'use client';
 
 import { useState } from 'react';
+import { DndContext } from '@dnd-kit/core';
+import { SortableContext } from '@dnd-kit/sortable';
 import { Button } from '@/client/components/ui/Button';
 import { PriorityBadge } from '@/client/components/ui/PriorityBadge';
 import { DueDateBadge } from '@/client/components/ui/DueDateBadge';
 import { Modal } from '@/client/components/ui/Modal';
 import { ConfirmDialog } from '@/client/components/ui/ConfirmDialog';
+import { TicketCard } from '@/client/components/ticket/TicketCard';
+import type { TicketWithMeta } from '@/shared/types';
+
+// TicketCard는 useSortable을 쓰므로 DndContext+SortableContext 없이는
+// 렌더할 수 없다. 프리뷰 전용 최소 래퍼 — 실제 드래그 로직은 Phase 5
+// Column/Phase 8 Board에서 붙인다.
+function SortableContextPreview({ children }: { children: React.ReactNode }) {
+  return (
+    <DndContext>
+      <SortableContext items={[1, 2, 3, 4]}>{children}</SortableContext>
+    </DndContext>
+  );
+}
+
+function makePreviewTicket(
+  overrides: Partial<TicketWithMeta> = {}
+): TicketWithMeta {
+  return {
+    id: 1,
+    title: '샘플 티켓 제목',
+    description: null,
+    status: 'TODO',
+    priority: 'MEDIUM',
+    position: 0,
+    plannedStartDate: null,
+    dueDate: '2026-12-31',
+    startedAt: null,
+    completedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    isOverdue: false,
+    ...overrides,
+  };
+}
 
 // 1뎁스: Phase 전체 묶음
 function PreviewSection({
@@ -127,7 +163,43 @@ export default function PreviewPage() {
       {/* Phase 3 — 티켓 도메인 리프 (TicketCard, TicketForm) */}
       <PreviewSection title="Phase 3: 티켓 도메인 리프">
         <ComponentGroup name="TicketCard">
-          <EmptyPlaceholder note="src/client/components/ticket/TicketCard.tsx 구현 후 여기에 렌더링" />
+          <SortableContextPreview>
+            <div className="grid w-full grid-cols-2 gap-3">
+              <TicketCard
+                ticket={makePreviewTicket({ id: 1, title: '기본 카드 (TODO)' })}
+                onClick={() => {}}
+              />
+              <TicketCard
+                ticket={makePreviewTicket({
+                  id: 2,
+                  title: '기한 초과 카드',
+                  status: 'IN_PROGRESS',
+                  dueDate: '2020-01-01',
+                  isOverdue: true,
+                })}
+                onClick={() => {}}
+              />
+              <TicketCard
+                ticket={makePreviewTicket({
+                  id: 3,
+                  title: '완료된 카드',
+                  status: 'DONE',
+                  priority: 'LOW',
+                })}
+                onClick={() => {}}
+              />
+              <TicketCard
+                ticket={makePreviewTicket({
+                  id: 4,
+                  title:
+                    '아주 긴 제목이 카드 폭을 넘어가면 말줄임(...) 처리가 되는지 확인하기 위한 예시 텍스트입니다',
+                  priority: 'HIGH',
+                  dueDate: null,
+                })}
+                onClick={() => {}}
+              />
+            </div>
+          </SortableContextPreview>
         </ComponentGroup>
         <ComponentGroup name="TicketForm">
           <EmptyPlaceholder note="src/client/components/ticket/TicketForm.tsx 구현 후 여기에 렌더링" />

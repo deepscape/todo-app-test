@@ -16,6 +16,7 @@ const PRIORITY_CLASSES: Record<TicketPriority, string> = {
 export function PriorityBadge({ priority }: PriorityBadgeProps) {
   return (
     <span
+      data-priority={priority}
       className={`${PRIORITY_CLASSES[priority]} rounded-badge px-2 py-0.5 text-xs font-medium`}
     >
       {priority}
