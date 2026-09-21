@@ -39,7 +39,7 @@
 | 1 | 기본 UI 컴포넌트 | PriorityBadge, DueDateBadge, Button, Modal, ConfirmDialog | ✅ 완료 |
 | 2 | Board 컴포넌트 | TicketCard, ColumnHeader, Column, Board | ✅ 완료 |
 | 3 | 입력폼과 모달 | TicketForm, TicketModal | ✅ 완료 |
-| 4 | 데이터 레이어 | ticketApi, useTickets | 예정 (Phase 1~3과 독립적, 병행 가능) |
+| 4 | 데이터 레이어 | ticketApi, useTickets | ✅ 완료 |
 | 5 | 헤더 / 필터 | BoardHeader, FilterBar | 예정 |
 | 6 | 컨테이너 | BoardContainer, `app/(board)/page.tsx` | 예정 (Phase 3~5 완료 후) |
 
@@ -275,61 +275,70 @@ TC-COMP-005(TicketModal) 대응 확인. `/preview` Phase 3 섹션에 생성/수�
 
 ---
 
-### Phase 4 — 데이터 레이어 (Phase 1~3과 독립적, 병행 가능)
+### Phase 4 — 데이터 레이어 ✅ (Phase 1~3과 독립적, 병행 가능)
 
 #### 4.1 ticketApi
 
 **파일**: `src/client/api/ticketApi.ts`
-**스펙**: 모든 API 호출을 이 모듈로 일원화. `CLAUDE.md`의 API 호출 패턴
-(에러 시 `error.error.message` throw)을 따른다.
+**스펙**: 모든 API 호출을 이 모듈로 일원화 — 컴포넌트/훅이 `fetch`를
+직접 호출하지 않고 `ticketApi.create(data)`처럼 이 레이어를 거친다.
+`CLAUDE.md`의 API 호출 패턴(에러 시 `error.error.message` throw)을
+따른다.
 
 **TDD 체크리스트**:
-- [ ] Red: `ticketApi.create()`가 `POST /api/tickets`를 올바른 body로
-      호출하는 테스트 (`global.fetch` mock)
-- [ ] Red: `ticketApi.update()`가 `PATCH /api/tickets/:id` 호출 테스트
-- [ ] Red: `ticketApi.remove()`가 `DELETE /api/tickets/:id` 호출 테스트
-- [ ] Red: `ticketApi.reorder()`가 `PATCH /api/tickets/reorder` 호출
-      테스트
-- [ ] Red: `ticketApi.complete()`가 `PATCH /api/tickets/:id/complete`
-      호출 테스트
-- [ ] Red: `ticketApi.getBoard()`(또는 동등 함수, 초기 로드용)가
-      `GET /api/tickets` 호출 테스트
-- [ ] Red: fetch 응답이 `!res.ok`일 때 `error.error.message`를 담은
-      Error를 throw하는 테스트 (각 함수 공통)
-- [ ] Green: `fetch` 래퍼 함수들 구현
-- [ ] Refactor: 공통 요청/에러 처리 로직을 내부 헬퍼로 추출 (중복 제거)
+- [x] Red: `ticketApi.getBoard()`가 `GET /api/tickets` 호출, 성공 시
+      응답 반환, 에러 시 throw 테스트
+- [x] Red: `ticketApi.create()`가 `POST /api/tickets`를 올바른 body로
+      호출, 성공/에러 테스트 (`jest.fn()`으로 `global.fetch` mock)
+- [x] Red: `ticketApi.update()`가 `PATCH /api/tickets/:id` 호출,
+      성공/에러 테스트
+- [x] Red: `ticketApi.remove()`가 `DELETE /api/tickets/:id` 호출,
+      성공/에러 테스트
+- [x] Red: `ticketApi.reorder()`가 `PATCH /api/tickets/reorder` 호출,
+      성공/에러 테스트
+- [x] Red: `ticketApi.complete()`가 `PATCH /api/tickets/:id/complete`
+      호출, 성공/에러 테스트
+- [x] Green: `fetch` 래퍼 함수들 구현 (`__tests__/api-client/ticketApi.test.ts`,
+      18 tests)
+- [x] Refactor: 공통 에러 처리(`!res.ok` → `error.error.message` throw)를
+      `throwIfError` 헬퍼로 추출
 
 #### 4.2 useTickets
 
 **파일**: `src/client/hooks/useTickets.ts`
 **스펙**: `UseTicketsReturn` 인터페이스(board, isLoading, error,
-create/update/remove/reorder/complete), 낙관적 업데이트 패턴(백업→즉시
-반영→API→확정 또는 롤백).
+create/update/remove/reorder/complete). 낙관적 업데이트 대신, 각 액션은
+`ticketApi` 호출 성공 후 `getBoard()`로 board를 다시 불러와 서버 기준
+최신 상태로 맞춘다(refreshBoard) — position 재배치, isOverdue,
+startedAt/completedAt 자동 설정 등 서버 파생값을 그대로 반영하기 위해
+낙관적 롤백 로직보다 단순한 이 방식을 택함.
 
-**TDD 체크리스트**:
-- [ ] Red: `@testing-library/react`의 `renderHook`으로 초기 `board`가
-      `initialData`와 동일한지 테스트
-- [ ] Red: `create()` 호출 시 낙관적으로 board에 임시 티켓이 즉시
-      반영되는지(await 이전 시점의 상태) 테스트 — API mock을 지연시켜
-      확인
-- [ ] Red: `create()` 성공 시 board가 서버 응답으로 확정되는 테스트
-- [ ] Red: `create()` 실패(API mock reject) 시 board가 낙관적 업데이트
-      이전 상태로 롤백되고 `error`가 설정되는 테스트
-- [ ] Red: `update()`가 해당 티켓 필드만 낙관적으로 반영, 실패 시 롤백
+**TDD 체크리스트** (10 tests, `ticketApi`는 `jest.mock`으로 대체,
+`renderHook` + `act()` 사용):
+- [x] Red: `initialData`로 초기 `board`가 설정되는 테스트
+- [x] Red: `create()`가 `ticketApi.create` 호출 후 `getBoard()`로
+      board를 갱신하는 테스트
+- [x] Red: `update()`가 `ticketApi.update` 호출 후 board를 갱신하는
       테스트
-- [ ] Red: `remove()`가 낙관적으로 목록에서 제거, 실패 시 복원 테스트
-- [ ] Red: `reorder()`가 상태/위치를 낙관적으로 반영, 실패 시 롤백 테스트
-- [ ] Red: `complete()`가 DONE 칼럼으로 낙관적 이동, 실패 시 롤백 테스트
-- [ ] Green: 각 액션에 대해 "백업 → setState 낙관적 반영 → try
-      ticketApi 호출 → 성공 시 재조정 catch 시 백업으로 복원 + error 설정"
-      패턴 구현
-- [ ] Refactor: 낙관적 업데이트 공통 로직(백업/롤백)을 내부 헬퍼로 추출해
-      5개 액션 간 중복 제거
+- [x] Red: `remove()`가 `ticketApi.remove` 호출 후 board를 갱신하는
+      테스트
+- [x] Red: `reorder()`가 `ticketApi.reorder` 호출 후 board를 갱신하는
+      테스트
+- [x] Red: `complete()`가 `ticketApi.complete` 호출 후 board를 갱신하는
+      테스트
+- [x] Red: `create()`/`remove()` 실패 시 `error` 상태 설정, board는
+      이전 상태 유지, `getBoard()` 미호출 테스트
+- [x] Red: API 호출 중 `isLoading=true`, 완료(성공/실패 모두) 후
+      `isLoading=false`로 복귀하는 테스트
+- [x] Green: 5개 액션 공통으로 "로딩 시작 → 호출 → 성공 시 refreshBoard
+      → 실패 시 error 설정 → 로딩 종료" 흐름 구현
+- [x] Refactor: 공통 흐름을 내부 `run()` 헬퍼로 추출해 5개 액션 간
+      중복 제거
 
-**Phase 4 완료 기준**: `npm run test -- __tests__/hooks
-__tests__/api-client`(또는 실제 배치한 경로) 전부 통과. 이 Phase는 UI
-Phase 1~3과 파일/모듈이 겹치지 않으므로 어느 시점에 진행해도 무방하나,
-Phase 6(BoardContainer)는 이 Phase 완료를 반드시 선행해야 한다.
+**Phase 4 완료 기준**: ✅ `npm run test -- __tests__/hooks
+__tests__/api-client` 전부 통과 (ticketApi 18 + useTickets 10 = 28
+tests). `npx tsc --noEmit`, `npm run lint`, `npm run build` 모두 통과.
+이 Phase는 UI가 아니라 `/preview`에 별도로 연결하지 않는다.
 
 ---
 
