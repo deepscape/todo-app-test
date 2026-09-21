@@ -139,6 +139,9 @@ export default function PreviewPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedBoardTicket, setSelectedBoardTicket] =
+    useState<TicketWithMeta | null>(null);
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-8">
@@ -286,16 +289,43 @@ export default function PreviewPage() {
           </SortableContextPreview>
         </ComponentGroup>
 
-        <ComponentGroup name="Board">
+        <ComponentGroup name="Board — 카드 클릭 시 TicketModal 열기">
           <div className="h-125 w-full overflow-auto">
-            <Board board={makePreviewBoard()} onTicketClick={() => {}} />
+            <Board
+              board={makePreviewBoard()}
+              onTicketClick={(ticket) => setSelectedBoardTicket(ticket)}
+            />
           </div>
+          {selectedBoardTicket && (
+            <TicketModal
+              ticket={selectedBoardTicket}
+              isOpen={selectedBoardTicket !== null}
+              onClose={() => setSelectedBoardTicket(null)}
+              onUpdate={() => {}}
+              onDelete={() => setSelectedBoardTicket(null)}
+            />
+          )}
         </ComponentGroup>
       </PreviewSection>
 
       {/* Phase 3 — 입력폼과 모달 (TicketForm, TicketModal) */}
       <PreviewSection title="Phase 3: 입력폼과 모달">
-        <ComponentGroup name="TicketForm — 생성 모드">
+        <ComponentGroup name="티켓 생성 — Modal + TicketForm(mode=&quot;create&quot;)">
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            티켓 생성
+          </Button>
+          <Modal
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+          >
+            <TicketForm
+              mode="create"
+              onSubmit={() => setIsCreateModalOpen(false)}
+              onCancel={() => setIsCreateModalOpen(false)}
+            />
+          </Modal>
+        </ComponentGroup>
+        <ComponentGroup name="TicketForm — 생성 모드 (단독)">
           <div className="w-full max-w-md rounded-card border border-neutral-border bg-card-bg p-4">
             <TicketForm
               mode="create"
@@ -315,16 +345,6 @@ export default function PreviewPage() {
                 plannedStartDate: '2026-10-01',
                 dueDate: '2026-10-31',
               }}
-              onSubmit={() => {}}
-              onCancel={() => {}}
-            />
-          </div>
-        </ComponentGroup>
-        <ComponentGroup name="TicketForm — 로딩 상태">
-          <div className="w-full max-w-md rounded-card border border-neutral-border bg-card-bg p-4">
-            <TicketForm
-              mode="create"
-              isLoading
               onSubmit={() => {}}
               onCancel={() => {}}
             />
