@@ -17,6 +17,8 @@ import { Modal } from '@/client/components/ui/Modal';
 import { ConfirmDialog } from '@/client/components/ui/ConfirmDialog';
 import { TicketCard } from '@/client/components/ticket/TicketCard';
 import { TicketForm } from '@/client/components/ticket/TicketForm';
+import { TicketDetailView } from '@/client/components/ticket/TicketDetailView';
+import { TicketModal } from '@/client/components/ticket/TicketModal';
 import { ColumnHeader } from '@/client/components/board/ColumnHeader';
 import { Column } from '@/client/components/board/Column';
 import { Board } from '@/client/components/board/Board';
@@ -136,6 +138,7 @@ function EmptyPlaceholder({ note }: { note: string }) {
 export default function PreviewPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-8">
@@ -327,8 +330,39 @@ export default function PreviewPage() {
             />
           </div>
         </ComponentGroup>
+        <ComponentGroup name="TicketDetailView">
+          <div className="w-full max-w-md rounded-card border border-neutral-border bg-card-bg p-4">
+            <TicketDetailView
+              ticket={makePreviewTicket({
+                status: 'IN_PROGRESS',
+                startedAt: new Date('2026-09-05T00:00:00.000Z'),
+                completedAt: null,
+                createdAt: new Date('2026-09-01T00:00:00.000Z'),
+              })}
+            />
+          </div>
+        </ComponentGroup>
         <ComponentGroup name="TicketModal">
-          <EmptyPlaceholder note="src/client/components/ticket/TicketModal.tsx 구현 후 여기에 렌더링" />
+          <Button onClick={() => setIsTicketModalOpen(true)}>
+            TicketModal 열기
+          </Button>
+          <TicketModal
+            ticket={makePreviewTicket({
+              id: 301,
+              title: '상세보기 예시 티켓',
+              description: '상세보기 예시 설명',
+              status: 'IN_PROGRESS',
+              priority: 'HIGH',
+              plannedStartDate: '2026-10-01',
+              dueDate: '2026-10-31',
+              startedAt: new Date('2026-09-05T00:00:00.000Z'),
+              createdAt: new Date('2026-09-01T00:00:00.000Z'),
+            })}
+            isOpen={isTicketModalOpen}
+            onClose={() => setIsTicketModalOpen(false)}
+            onUpdate={() => {}}
+            onDelete={() => setIsTicketModalOpen(false)}
+          />
         </ComponentGroup>
       </PreviewSection>
 

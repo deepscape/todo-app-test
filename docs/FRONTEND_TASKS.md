@@ -38,7 +38,7 @@
 |---|---|---|---|
 | 1 | 기본 UI 컴포넌트 | PriorityBadge, DueDateBadge, Button, Modal, ConfirmDialog | ✅ 완료 |
 | 2 | Board 컴포넌트 | TicketCard, ColumnHeader, Column, Board | ✅ 완료 |
-| 3 | 입력폼과 모달 | TicketForm, TicketModal | 예정 |
+| 3 | 입력폼과 모달 | TicketForm, TicketModal | ✅ 완료 |
 | 4 | 데이터 레이어 | ticketApi, useTickets | 예정 (Phase 1~3과 독립적, 병행 가능) |
 | 5 | 헤더 / 필터 | BoardHeader, FilterBar | 예정 |
 | 6 | 컨테이너 | BoardContainer, `app/(board)/page.tsx` | 예정 (Phase 3~5 완료 후) |
@@ -198,7 +198,7 @@ __tests__/components/Column __tests__/components/Board`, `npx tsc
 
 ---
 
-### Phase 3 — 입력폼과 모달
+### Phase 3 — 입력폼과 모달 ✅
 
 #### 3.1 TicketForm
 
@@ -209,28 +209,29 @@ plannedStartDate/dueDate), 클라이언트 Zod 검증(`src/shared/validations/ti
 (create) 또는 모달 닫기(edit).
 
 **TDD 체크리스트**:
-- [ ] Red: 5개 필드가 모두 렌더되는지(label 또는 placeholder 텍스트 기준
+- [x] Red: 5개 필드가 모두 렌더되는지(label 또는 placeholder 텍스트 기준
       `getByLabelText` 등) 테스트
-- [ ] Red: `mode="edit"` + `initialData`로 필드에 기존 값이 채워지는 테스트
-- [ ] Red: title 빈 값으로 제출 시 "제목을 입력해주세요" 에러가 인라인
+- [x] Red: `mode="edit"` + `initialData`로 필드에 기존 값이 채워지는 테스트
+- [x] Red: title 빈 값으로 제출 시 "제목을 입력해주세요" 에러가 인라인
       노출되고 `onSubmit`이 호출되지 않는 테스트
-- [ ] Red: title 201자 입력 시 "제목은 200자 이내로 입력해주세요" 에러
-      테스트
-- [ ] Red: description 1001자 입력 시 "설명은 1000자 이내로 입력해주세요"
-      에러 테스트
-- [ ] Red: dueDate에 과거 날짜 입력 시 "종료예정일은 오늘 이후 날짜를
+- [x] Red: dueDate에 과거 날짜 입력 시 "종료예정일은 오늘 이후 날짜를
       선택해주세요" 에러 테스트
-- [ ] Red: 유효한 값 입력 후 제출 버튼 클릭 시 `onSubmit`이 올바른
+- [x] Red: 유효한 값 입력 후 제출 버튼 클릭 시 `onSubmit`이 올바른
       데이터로 호출되는 테스트
-- [ ] Red: 유효한 값 입력 후 Enter 키로도 제출되는 테스트
-- [ ] Red: `isLoading=true`일 때 제출 버튼이 disabled인지 테스트
-- [ ] Red: `onCancel`이 취소 버튼 클릭 시 호출되는 테스트
-- [ ] Green: `react-hook-form` 없이 controlled input + 수동 상태로 최소
-      구현하거나, 이미 프로젝트에 폼 라이브러리가 없으므로 순수 useState
-      기반으로 구현 (신규 의존성 추가는 이 계획 범위 밖 — 필요 시 별도
-      결정)
-- [ ] Refactor: 필드별 에러 상태를 하나의 객체로 통합, Zod
-      `safeParse`의 `error.errors`를 필드별로 매핑하는 헬퍼 추출
+- [x] Red: 유효한 값 입력 후 Enter 키로도 제출되는 테스트
+- [x] Red: `isLoading=true`일 때 제출 버튼이 disabled인지 테스트
+- [x] Red: `onCancel`이 취소 버튼 클릭 시 호출되는 테스트
+- [x] Green: `react-hook-form` 없이 controlled input + 수동 상태로 최소
+      구현 (신규 의존성 추가 없음)
+- [x] Refactor: 필드별 에러 상태를 하나의 객체(`errors`)로 통합, Zod
+      `safeParse`의 `error.errors`를 필드별로 매핑; `form-field`/
+      `form-input`/`form-error` 클래스를 `app/globals.css`에 추가해
+      인라인 Tailwind 대신 사용
+
+**완료**: 9 tests (TC-COMP-004 C004-1~7 + Enter 제출 + 취소). title
+201자/description 1001자 케이스는 Zod가 이미 `createTicketSchema`에서
+검증하므로 TicketForm 자체 테스트에서는 사용자 요청 범위(C004-1~7)에
+맞춰 생략 — 스키마 레벨 검증은 `src/shared/validations`로 커버됨.
 
 #### 3.2 TicketModal (+ TicketDetailView)
 
@@ -240,27 +241,37 @@ plannedStartDate/dueDate), 클라이언트 Zod 검증(`src/shared/validations/ti
 인라인 편집, 삭제 시 ConfirmDialog, onUpdate/onDelete 호출.
 
 **TDD 체크리스트**:
-- [ ] Red: `isOpen=true`일 때 title/description/priority/plannedStartDate
-      /dueDate가 표시되는 테스트
-- [ ] Red: 읽기 전용 필드(status, startedAt, completedAt, createdAt)가
+- [x] Red: `isOpen=true`일 때 title/description/priority/plannedStartDate
+      /dueDate가 표시되는 테스트 (TicketDetailView 3 tests로 읽기전용
+      4필드, TicketModal 테스트로 편집가능 5필드 커버)
+- [x] Red: 읽기 전용 필드(status, startedAt, completedAt, createdAt)가
       편집 불가 형태(입력 요소가 아닌 텍스트)로 렌더되는 테스트
-- [ ] Red: startedAt/completedAt이 `null`일 때 "-" 또는 빈 상태로 표시되는
+- [x] Red: startedAt/completedAt이 `null`일 때 "-"로 표시되는 테스트
+- [x] Red: 편집 후 저장 시 `onUpdate(id, data)`가 변경된 필드로 호출되는
       테스트
-- [ ] Red: 필드 클릭 시 편집 모드로 전환(입력 요소 등장)되는 테스트
-- [ ] Red: 편집 후 저장 시 `onUpdate(id, data)`가 변경된 필드로 호출되는
-      테스트
-- [ ] Red: 삭제 버튼 클릭 시 ConfirmDialog가 열리는 테스트
-- [ ] Red: ConfirmDialog에서 확인 시 `onDelete(id)` 호출 테스트
-- [ ] Red: `onClose`가 ESC/바깥 클릭 시 호출되는 테스트(Modal 재사용 확인)
-- [ ] Green: Modal + TicketForm(edit 모드 일부 재사용 검토, 또는 자체
-      인라인 편집 UI) + ConfirmDialog + Button 조합으로 구현
-- [ ] Refactor: TicketDetailView(읽기 전용 뷰)를 별도 서브컴포넌트로
-      분리할지 검토 — COMPONENT_SPEC.md 계층도에는 별도 노드로 존재하므로
-      분리 권장
+- [x] Red: 삭제 버튼 클릭 시 ConfirmDialog가 열리는 테스트 (바로
+      `onDelete`가 호출되지 않음을 함께 확인)
+- [x] Red: ConfirmDialog에서 확인 시 `onDelete(id)` 호출, 취소 시
+      호출되지 않고 닫히는 테스트
+- [x] Red: `onClose`가 ESC/바깥 클릭 시 호출되는 테스트(Modal 재사용 확인)
+- [x] Green: Modal + TicketDetailView(읽기전용) + TicketForm(mode="edit"
+      그대로 재사용, 필드별 인라인 편집 UI를 별도로 만들지 않음) +
+      ConfirmDialog + Button(삭제) 조합으로 구현
+- [x] Refactor: 삭제 확인 중(`isConfirmOpen`)에는 TicketForm을 숨기고
+      ConfirmDialog만 렌더 — 두 컴포넌트의 "취소" 버튼이 동시에 존재해
+      `getByRole` 충돌하는 문제 방지. `isOpen`이 꺼지면 `isConfirmOpen`도
+      함께 닫히도록 조건 결합
 
-**Phase 3 완료 기준**: 두 컴포넌트 테스트 전부 통과, TC-COMP-004
-(TicketForm), TC-COMP-005(TicketModal) 대응 확인. `/preview` Phase 3
-섹션에 생성/수정 폼과 상세 모달을 목 데이터로 연결해 육안 확인.
+**완료**: TicketDetailView 3 tests + TicketModal 9 tests. 스펙상
+"인라인 편집"(필드별 클릭 전환) 대신 TicketForm(edit 모드)을 모달 안에
+항상 렌더하는 방식을 택함 — 이미 Zod 검증까지 갖춘 컴포넌트를 그대로
+재사용하는 편이 신규 인라인 편집 상태 머신을 만드는 것보다 실용적.
+
+**Phase 3 완료 기준**: ✅ 두 컴포넌트 테스트 전부 통과 (TicketForm 9 +
+TicketDetailView 3 + TicketModal 9 = 21 tests), TC-COMP-004(TicketForm),
+TC-COMP-005(TicketModal) 대응 확인. `/preview` Phase 3 섹션에 생성/수정
+폼과 상세 모달을 목 데이터로 연결해 육안 확인 완료. `npx tsc --noEmit`,
+`npm run test`(142/142), `npm run lint`, `npm run build` 모두 통과.
 
 ---
 
