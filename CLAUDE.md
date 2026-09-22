@@ -55,6 +55,18 @@ POSTGRES_URL=postgres://user:password@localhost:5432/tika
 | docs/COMPONENT_SPEC.md | 컴포넌트 계층, Props, 이벤트 |
 | docs/TEST_CASES.md | TDD용 테스트 케이스 정의 |
 
+## 디자인 시스템
+스타일링 작성 시 반드시 아래 파일들을 참고할 것:
+- 컬러 토큰 (참조): `docs/colors.json`
+- 디자인 가이드: `docs/DESIGN_SYSTEM.md`
+- CSS 변수 (런타임): `app/globals.css`의 `@theme` 블록
+
+새 컴포넌트 생성 시 `colors.json`의 semantic 컬러와
+`DESIGN_SYSTEM.md`의 간격/그림자/라운딩 규칙을 따른다.
+
+컬러 변경 시 `colors.json`과 `globals.css`의 CSS 변수를 함께
+업데이트한다.
+
 ## 코딩 컨벤션
 
 ### TypeScript
