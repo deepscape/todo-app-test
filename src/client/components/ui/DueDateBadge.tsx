@@ -16,7 +16,7 @@ export function DueDateBadge({ dueDate, isOverdue }: DueDateBadgeProps) {
 
   return (
     <span
-      className={`${overdueClasses} rounded-badge border px-2 py-0.5 text-xs`}
+      className={`${overdueClasses} rounded-badge border px-2 py-0.5 text-[11px] font-semibold`}
     >
       {dueDate}
     </span>

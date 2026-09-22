@@ -7,14 +7,20 @@
    (예: --color-priority-high 는 bg-priority-high, text-priority-high,
    border-priority-high 유틸리티를 만든다).
 
-   색상 의미 체계 (docs/PRD.md, docs/COMPONENT_SPEC.md 기준 고정):
+   색상 값의 소스는 docs/DESIGN_SYSTEM.md + docs/colors.json (Linear/
+   Trello 벤치마킹 디자인 시스템) — 값을 바꿀 때는 그 문서를 먼저
+   갱신한 뒤 여기 동일하게 반영한다 (현재는 수동 동기화).
+
+   색상 의미 체계 (docs/DESIGN_SYSTEM.md §4, docs/colors.json 기준):
      red    → HIGH 우선순위 + 오버듀 경고 전용
-     blue   → MEDIUM 우선순위 전용
+     blue   → MEDIUM 우선순위 + In Progress 칼럼 액센트 (배지 vs
+              칼럼 테두리/포인트로 용도 구분)
+     yellow → TODO 칼럼 액센트
+     lavender → Backlog 칼럼 액센트
+     green  → Done 칼럼 액센트
      gray   → LOW 우선순위 + 중립 UI
      brand(인디고) → 인터랙티브/브랜드 요소 전용
-       (활성 필터, 기본 버튼, 포커스 링)
-   와이어프레임이 필터 뱃지에 빨간색을 쓴 것과 별개로, 시맨틱 색상(우선
-   순위/오버듀)과 인터랙티브 색상(브랜드)을 명확히 분리한다.
+       (기본 버튼, 포커스 링, 선택 상태)
 
    다크 모드: MVP 범위 밖이라 의도적으로 생략 (docs/PRD.md §2.1 제외
    목록, §7 2차 확장 계획). 토큰 이름을 시맨틱하게 지어두어 추후
@@ -25,34 +31,47 @@
 @theme {
   /* ---- Surfaces ---- */
   --color-board-bg: #f4f5f7;          /* 전체 배경 (사이드바+보드 뒤) */
-  --color-column-bg: #ebecf0;         /* 칼럼 공통 연한 회색 배경 (4칼럼 동일) */
-  --color-column-header-bg: #e4e6ea;  /* 칼럼 헤더 스트립, 본문보다 살짝 진하게 */
   --color-card-bg: #ffffff;           /* 카드 표면 */
-  --color-card-border: #dfe1e6;       /* 카드 옅은 테두리 */
+  --color-card-border: #e5e7eb;       /* 카드 테두리, Gray-200 */
 
-  /* ---- Text ---- */
-  --color-text-primary: #172b4d;      /* 제목, 본문 */
-  --color-text-secondary: #44546f;    /* 설명 */
+  /* ---- 칼럼별 파스텔 배경 + 액센트 (docs/DESIGN_SYSTEM.md §4) ----
+     각 칼럼은 고유 배경색으로 시각적 구분을 제공하고, 액센트는 칼럼
+     헤더/테두리 포인트에 사용한다. */
+  --color-column-backlog-bg: #F0EDFA;
+  --color-column-backlog-accent: #8B7EC8;
+
+  --color-column-todo-bg: #FFF8E1;
+  --color-column-todo-accent: #F59E0B;
+
+  --color-column-inprogress-bg: #E8F4FD;
+  --color-column-inprogress-accent: #3B82F6;
+
+  --color-column-done-bg: #E8F5E9;
+  --color-column-done-accent: #22C55E;
+
+  /* ---- Text (docs/DESIGN_SYSTEM.md §3 타이포그래피와 짝) ---- */
+  --color-text-primary: #111827;      /* 제목 — Gray-900 */
+  --color-text-secondary: #4B5563;    /* 내용/설명 — Gray-600 */
+  --color-text-label: #4B5563;        /* 폼 라벨 — Gray-600 */
   --color-text-muted: #6b778c;        /* 메타 텍스트: 날짜, 카운트 */
   --color-text-inverse: #ffffff;      /* 채워진(브랜드/danger) 표면 위 텍스트 */
 
   /* ---- Brand / 인터랙티브 강조색 (빨강 아님) ----
-     활성 FilterBar 필터, Primary 버튼, 포커스 링, 선택 상태에 사용.
-     MEDIUM-blue, HIGH-red와 구분되는 별도 색조로 절대 우선순위
-     의미와 충돌하지 않는다. */
+     Primary 버튼, 포커스 링, 선택 상태에 사용. MEDIUM-blue, HIGH-red와
+     구분되는 별도 색조로 절대 우선순위 의미와 충돌하지 않는다. */
   --color-brand: #4c6ef5;
   --color-brand-hover: #3b5bdb;
   --color-brand-subtle: #edf1ff;      /* ghost 버튼 hover 배경 등 옅은 틴트 */
 
-  /* ---- 우선순위 뱃지 (배경+텍스트 쌍, AA 대비 확보) ---- */
-  --color-priority-low-bg: #dfe1e6;
-  --color-priority-low-text: #42526e;
+  /* ---- 우선순위 뱃지 (docs/DESIGN_SYSTEM.md §5, Tailwind 팔레트) ---- */
+  --color-priority-low-bg: #F3F4F6;
+  --color-priority-low-text: #374151;
 
-  --color-priority-medium-bg: #deebff;
-  --color-priority-medium-text: #0747a6;
+  --color-priority-medium-bg: #DBEAFE;
+  --color-priority-medium-text: #1E40AF;
 
-  --color-priority-high-bg: #ffebe6;
-  --color-priority-high-text: #bf2600;
+  --color-priority-high-bg: #FEE2E2;
+  --color-priority-high-text: #991B1B;
 
   /* ---- 오버듀 강조 (HIGH와 같은 red 계열이지만 별도 토큰 —
      뱃지 배경이 아닌 카드 테두리/아이콘에 적용되므로 분리) ---- */
@@ -73,17 +92,18 @@
   --color-overlay: rgb(9 30 66 / 0.54);
 
   /* ---- Radius ---- */
-  --radius-card: 0.5rem;      /* ~8px, Trello 참고 이미지 기준 */
-  --radius-control: 0.375rem; /* 버튼/인풋 */
+  --radius-card: 0.5rem;      /* 8px, docs/DESIGN_SYSTEM.md §5 Task Card */
+  --radius-control: 0.375rem; /* 버튼. Input은 6px로 별도 지정(§5) */
   --radius-badge: 9999px;     /* 필(pill) 형태 */
 
-  /* ---- Shadow ---- */
-  --shadow-card: 0 1px 2px rgb(9 30 66 / 0.16), 0 0 1px rgb(9 30 66 / 0.31);
-  --shadow-card-dragging: 0 8px 16px rgb(9 30 66 / 0.24);
+  /* ---- Shadow (docs/DESIGN_SYSTEM.md §5 Task Card) ---- */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-card-dragging: 0 4px 8px rgb(0 0 0 / 0.12);
   --shadow-modal: 0 12px 32px rgb(9 30 66 / 0.28);
 
   /* ---- Spacing ---- */
   --spacing-card-gap: 0.5rem; /* 카드 간격 8px, docs/COMPONENT_SPEC.md §2.5 */
+  --spacing-side-inventory: 17rem; /* 272px, docs/DESIGN_SYSTEM.md §2 */
 }
 
 /* ===========================================================
@@ -122,15 +142,19 @@
    TC-COMP-001). 그 외 컴포넌트는 계속 Tailwind 유틸리티를 직접 쓴다.
    =========================================================== */
 @layer components {
+  /* Task Card (docs/DESIGN_SYSTEM.md §5, §6). idle에서는 그냥 카드,
+     hover 시 shadow 강화 + cursor grab(잡아서 옮길 수 있음을 암시),
+     드래그 중에는 살짝 기울이고(rotate) 그림자를 더 강하게 준다. */
   .ticket-card {
     background-color: var(--color-card-bg);
     border: 1px solid var(--color-card-border);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
-    cursor: pointer;
+    cursor: grab;
     transition:
       box-shadow 0.15s ease,
-      opacity 0.15s ease;
+      opacity 0.15s ease,
+      transform 0.15s ease;
   }
 
   .ticket-card:hover {
@@ -151,25 +175,28 @@
   }
 
   /* useSortable의 isDragging과 연결해 드래그 중 카드에 적용한다
-     (Column/Board 단계에서 사용 — TicketCard는 opacity만 소비). */
+     (Column/Board 단계에서 사용 — TicketCard는 opacity만 소비).
+     docs/DESIGN_SYSTEM.md §6: opacity 0.5 + rotate(3deg) + 강한 shadow. */
   .ticket-card--dragging {
-    opacity: 0.4;
+    opacity: 0.5;
+    cursor: grabbing;
+    transform: rotate(3deg);
     box-shadow: var(--shadow-card-dragging);
   }
 
-  /* BACKLOG 칼럼 전용 사이드바 스타일 (docs/COMPONENT_SPEC.md §2.5,
-     TC-COMP-003 C003-2). 폭/스크롤을 메인 3칼럼 그리드와 구분한다 —
-     실제 그리드 배치는 Board가 결정하고, 이 클래스는 Column 자신의
-     내부 스타일(고정 폭, 자체 스크롤)만 담당한다. */
+  /* Backlog 칼럼 전용 사이드바 스타일 (docs/DESIGN_SYSTEM.md §2 Side
+     Inventory: 272px 고정 폭). 실제 그리드 배치는 Board가 결정하고,
+     이 클래스는 Column 자신의 내부 스타일(고정 폭, 자체 스크롤)만
+     담당한다. */
   .column--sidebar {
-    width: 280px;
+    width: var(--spacing-side-inventory);
     flex-shrink: 0;
     overflow-y: auto;
   }
 
   /* 폼 필드(TicketForm, TC-COMP-004): 라벨 + 인풋 + 에러 메시지가
-     세 컴포넌트(TicketForm, 추후 TicketModal 내부 폼)에서 반복되는
-     조합이라 이름 붙은 클래스로 정의한다. */
+     세 컴포넌트(TicketForm, TicketModal 내부 폼)에서 반복되는 조합이라
+     이름 붙은 클래스로 정의한다. */
   .form-field {
     display: flex;
     flex-direction: column;
@@ -177,30 +204,31 @@
   }
 
   .form-field label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text-primary);
+    font-size: 0.75rem;   /* 12px, docs/DESIGN_SYSTEM.md §3 라벨 */
+    font-weight: 600;     /* Semi-bold */
+    color: var(--color-text-label);
   }
 
-  /* text/textarea/select/date input 공통 스타일 — 요소 종류가 달라도
-     시각적으로 동일한 폼 컨트롤로 보이게 한다. */
+  /* text/textarea/select/date input 공통 스타일 (docs/DESIGN_SYSTEM.md
+     §5 Input Fields) — 요소 종류가 달라도 시각적으로 동일한 폼
+     컨트롤로 보이게 한다. */
   .form-input {
-    border-radius: var(--radius-control);
-    border: 1px solid var(--color-neutral-border);
+    border-radius: 0.375rem; /* 6px */
+    border: 1px solid #E2E8F0;
     background-color: var(--color-card-bg);
     color: var(--color-text-primary);
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem; /* 8px 12px */
+    font-size: 0.75rem;      /* 12px */
   }
 
   .form-input:focus {
     outline: none;
-    border-color: var(--color-brand);
-    box-shadow: 0 0 0 2px var(--color-brand-subtle);
+    border-color: var(--color-column-inprogress-accent);
+    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.15);
   }
 
   .form-error {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     color: var(--color-danger);
   }
 }

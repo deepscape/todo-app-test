@@ -1,6 +1,7 @@
-// docs/COMPONENT_SPEC.md §2.6 TicketCard, docs/TEST_CASES.md TC-COMP-001.
-// app/globals.css의 .ticket-card 계열 클래스(TC-COMP-001 C001-2, C001-3)와
-// PriorityBadge/DueDateBadge(이미 구현됨, Phase 1)를 조합한다.
+// docs/COMPONENT_SPEC.md §2.6 TicketCard, docs/TEST_CASES.md TC-COMP-001,
+// docs/DESIGN_SYSTEM.md §3/§5. app/globals.css의 .ticket-card 계열
+// 클래스(TC-COMP-001 C001-2, C001-3)와 PriorityBadge/DueDateBadge를
+// 조합한다. 카드 타이틀은 14px Bold(§3), padding 12px(p-3, §5).
 'use client';
 
 import { useSortable } from '@dnd-kit/sortable';
@@ -54,7 +55,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
       role="button"
       tabIndex={0}
     >
-      <p className="truncate text-sm font-medium text-text-primary">
+      <p className="truncate text-sm font-bold text-text-primary">
         {ticket.title}
       </p>
       <div className="flex flex-wrap items-center gap-2">

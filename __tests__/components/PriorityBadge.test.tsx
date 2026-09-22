@@ -37,10 +37,10 @@ describe('PriorityBadge', () => {
     expect(badge).toHaveClass('text-priority-high-text');
   });
 
-  it('둥근 패딩(rounded-badge)과 작은 텍스트(text-xs) 스타일을 적용한다', () => {
+  it('둥근 패딩(rounded-badge)과 11px 배지 텍스트(docs/DESIGN_SYSTEM.md §3) 스타일을 적용한다', () => {
     render(<PriorityBadge priority="LOW" />);
     const badge = screen.getByText('LOW');
     expect(badge).toHaveClass('rounded-badge');
-    expect(badge).toHaveClass('text-xs');
+    expect(badge).toHaveClass('text-[11px]');
   });
 });
