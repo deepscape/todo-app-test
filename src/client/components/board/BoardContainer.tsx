@@ -23,7 +23,7 @@ interface BoardContainerProps {
 }
 
 export function BoardContainer({ initialData }: BoardContainerProps) {
-  const { board, isLoading, create, update, remove, reorder, complete } =
+  const { board, isLoading, error, create, update, remove, reorder, complete } =
     useTickets(initialData);
 
   const [activeTicket, setActiveTicket] = useState<TicketWithMeta | null>(null);
@@ -110,6 +110,19 @@ export function BoardContainer({ initialData }: BoardContainerProps) {
 
   return (
     <div className="flex h-screen flex-col">
+      {/* Web Interface Guidelines: 실패한 비동기 작업(reorder/complete
+          낙관적 업데이트 롤백, create/update/remove 실패 등)은 화면에
+          보이는 메시지로 알려야 한다. aria-live="polite"로 스크린리더
+          사용자에게도 전달한다. */}
+      {error && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="bg-danger-hover/10 text-danger border-danger border-b px-4 py-2 text-sm"
+        >
+          {error}
+        </div>
+      )}
       <BoardHeader onCreateClick={() => setIsCreating(true)} />
       <FilterBar
         activeFilter={activeFilter}

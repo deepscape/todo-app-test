@@ -3,7 +3,7 @@
 // 검증에 사용한다 — POST /api/tickets와 동일한 규칙을 SSOT로 공유하기
 // 위함(docs/TRD.md §7). react-hook-form 등 신규 의존성 없이 controlled
 // input + 수동 상태로 최소 구현한다(docs/FRONTEND_TASKS.md Phase 3.1).
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { createTicketSchema } from '@/shared/validations/ticket';
 import type { TicketPriority } from '@/shared/types';
 import { Button } from '@/client/components/ui/Button';
@@ -44,6 +44,31 @@ export function TicketForm({
   const [dueDate, setDueDate] = useState(initialData?.dueDate ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Web Interface Guidelines: "focus first error on submit" — 필드
+  // 표시 순서(제목→설명→우선순위→시작예정일→종료예정일)대로 ref를
+  // 두고, 검증 실패 시 그중 가장 먼저 에러가 난 필드로 포커스를
+  // 옮긴다.
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const priorityRef = useRef<HTMLSelectElement>(null);
+  const plannedStartDateRef = useRef<HTMLInputElement>(null);
+  const dueDateRef = useRef<HTMLInputElement>(null);
+
+  const FIELD_REFS: Record<string, React.RefObject<HTMLElement | null>> = {
+    title: titleRef,
+    description: descriptionRef,
+    priority: priorityRef,
+    plannedStartDate: plannedStartDateRef,
+    dueDate: dueDateRef,
+  };
+  const FIELD_ORDER = [
+    'title',
+    'description',
+    'priority',
+    'plannedStartDate',
+    'dueDate',
+  ];
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
@@ -64,6 +89,11 @@ export function TicketForm({
         }
       }
       setErrors(fieldErrors);
+
+      const firstErrorField = FIELD_ORDER.find((field) => fieldErrors[field]);
+      if (firstErrorField) {
+        FIELD_REFS[firstErrorField].current?.focus();
+      }
       return;
     }
 
@@ -76,6 +106,7 @@ export function TicketForm({
       <div className="form-field">
         <label htmlFor="ticket-title">제목</label>
         <input
+          ref={titleRef}
           id="ticket-title"
           type="text"
           value={title}
@@ -88,6 +119,7 @@ export function TicketForm({
       <div className="form-field">
         <label htmlFor="ticket-description">설명</label>
         <textarea
+          ref={descriptionRef}
           id="ticket-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -101,6 +133,7 @@ export function TicketForm({
       <div className="form-field">
         <label htmlFor="ticket-priority">우선순위</label>
         <select
+          ref={priorityRef}
           id="ticket-priority"
           value={priority}
           onChange={(e) => setPriority(e.target.value as TicketPriority)}
@@ -115,6 +148,7 @@ export function TicketForm({
       <div className="form-field">
         <label htmlFor="ticket-planned-start-date">시작예정일</label>
         <input
+          ref={plannedStartDateRef}
           id="ticket-planned-start-date"
           type="date"
           value={plannedStartDate}
@@ -129,6 +163,7 @@ export function TicketForm({
       <div className="form-field">
         <label htmlFor="ticket-due-date">종료예정일</label>
         <input
+          ref={dueDateRef}
           id="ticket-due-date"
           type="date"
           value={dueDate}

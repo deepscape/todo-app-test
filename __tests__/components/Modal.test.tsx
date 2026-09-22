@@ -100,4 +100,43 @@ describe('Modal', () => {
     );
     expect(document.body.style.overflow).not.toBe('hidden');
   });
+
+  // Web Interface Guidelines: 오버레이가 포커스된 요소를 가려서는 안
+  // 된다 — 모달이 열리면 포커스가 모달 내부로 이동해야 한다.
+  it('열리면 포커스가 모달 컨테이너 내부로 이동한다', () => {
+    render(
+      <Modal isOpen onClose={jest.fn()}>
+        <button>내부 버튼</button>
+      </Modal>
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('Tab을 눌러도 포커스가 모달 바깥으로 나가지 않는다(포커스 트랩)', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>모달 바깥 버튼</button>
+        <Modal isOpen onClose={jest.fn()}>
+          <button>첫번째</button>
+          <button>두번째</button>
+        </Modal>
+      </>
+    );
+
+    const dialog = screen.getByRole('dialog');
+    const first = screen.getByText('첫번째');
+    const second = screen.getByText('두번째');
+
+    first.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(second);
+
+    // 마지막 요소에서 Tab을 누르면 첫번째 요소로 순환한다.
+    await user.tab();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toHaveTextContent('모달 바깥 버튼');
+  });
 });

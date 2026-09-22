@@ -106,6 +106,33 @@ describe('TicketForm', () => {
     expect(handleSubmit).not.toHaveBeenCalled();
   });
 
+  // Web Interface Guidelines: "focus first error on submit"
+  it('제출 실패 시 첫 번째 에러 필드(제목)로 포커스가 이동한다', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TicketForm mode="create" onSubmit={jest.fn()} onCancel={jest.fn()} />
+    );
+
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(getTitleInput()).toHaveFocus();
+  });
+
+  it('제목은 유효하고 종료예정일만 에러면 종료예정일 필드로 포커스가 이동한다', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TicketForm mode="create" onSubmit={jest.fn()} onCancel={jest.fn()} />
+    );
+
+    await user.type(getTitleInput(), '유효한 제목');
+    await user.type(getDueDateInput(), '2020-01-01');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(getDueDateInput()).toHaveFocus();
+  });
+
   // C004-5: 시작예정일 필드 존재 — plannedStartDate date input 렌더링
   it('C004-5: plannedStartDate 필드가 type="date" input으로 렌더된다', () => {
     render(

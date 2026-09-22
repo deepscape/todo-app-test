@@ -40,6 +40,10 @@ export function Button({
 }: ButtonProps) {
   const classes = [
     'rounded-control',
+    // Web Interface Guidelines: 키보드 포커스는 항상 보이는 링으로
+    // 표시한다(:focus가 아닌 :focus-visible 사용 — 마우스 클릭 시에는
+    // 링을 띄우지 않는다).
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

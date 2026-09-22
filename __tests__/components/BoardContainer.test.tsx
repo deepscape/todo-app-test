@@ -59,12 +59,13 @@ const mockReorder = jest.fn();
 const mockComplete = jest.fn();
 
 let mockBoard: BoardData;
+let mockError: string | null = null;
 
 jest.mock('../../src/client/hooks/useTickets', () => ({
   useTickets: () => ({
     board: mockBoard,
     isLoading: false,
-    error: null,
+    error: mockError,
     create: mockCreate,
     update: mockUpdate,
     remove: mockRemove,
@@ -105,6 +106,7 @@ function makeBoard(overrides: Partial<BoardData> = {}): BoardData {
 beforeEach(() => {
   jest.clearAllMocks();
   mockBoard = makeBoard();
+  mockError = null;
 });
 
 describe('BoardContainer', () => {
@@ -238,5 +240,31 @@ describe('BoardContainer', () => {
     await user.click(screen.getByRole('button', { name: '확인' }));
 
     expect(mockRemove).toHaveBeenCalledWith(5);
+  });
+
+  // Web Interface Guidelines: 실패한 비동기 작업(낙관적 업데이트 롤백
+  // 등)은 사용자에게 반드시 시각적으로 알려야 한다.
+  it('useTickets.error가 있으면 화면에 에러 메시지가 표시된다', () => {
+    mockError = '티켓을 찾을 수 없습니다';
+
+    render(<BoardContainer initialData={mockBoard} />);
+
+    expect(screen.getByText('티켓을 찾을 수 없습니다')).toBeInTheDocument();
+  });
+
+  it('error가 없으면 에러 메시지가 표시되지 않는다', () => {
+    render(<BoardContainer initialData={mockBoard} />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('에러 메시지는 aria-live="polite"인 영역에 표시된다(스크린리더 알림)', () => {
+    mockError = '네트워크 오류가 발생했습니다';
+
+    render(<BoardContainer initialData={mockBoard} />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('aria-live', 'polite');
+    expect(alert).toHaveTextContent('네트워크 오류가 발생했습니다');
   });
 });

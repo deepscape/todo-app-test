@@ -232,3 +232,25 @@
     color: var(--color-danger);
   }
 }
+
+/* ===========================================================
+   Web Interface Guidelines: prefers-reduced-motion을 존중한다.
+   모션을 줄이도록 설정한 사용자에게는 transition/transform 기반
+   애니메이션(카드 hover 그림자 전환, 드래그 중 회전)을 사실상 끈다 —
+   색상/상태 변화 자체(opacity로 완료/드래그 상태를 구분하는 것)는
+   유지하되 움직임만 제거한다.
+   =========================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .ticket-card {
+    transition: none;
+  }
+
+  .ticket-card--dragging {
+    transform: none;
+  }
+
+  .bg-overlay,
+  [role='dialog'] {
+    transition: none !important;
+  }
+}

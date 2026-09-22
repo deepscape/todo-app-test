@@ -88,6 +88,15 @@ describe('Button', () => {
     });
   });
 
+  describe('포커스 스타일 (Web Interface Guidelines: focus-visible 링 필수)', () => {
+    it('모든 variant에 focus-visible 링 스타일 클래스가 있다', () => {
+      render(<Button>확인</Button>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('focus-visible:ring-2');
+      expect(button).toHaveClass('focus-visible:outline-none');
+    });
+  });
+
   describe('onClick 핸들러', () => {
     it('클릭하면 onClick이 1회 호출된다', async () => {
       const user = userEvent.setup();
