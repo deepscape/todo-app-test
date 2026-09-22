@@ -40,7 +40,7 @@
 | 2 | Board 컴포넌트 | TicketCard, ColumnHeader, Column, Board | ✅ 완료 |
 | 3 | 입력폼과 모달 | TicketForm, TicketModal | ✅ 완료 |
 | 4 | 데이터 레이어 | ticketApi, useTickets | ✅ 완료 |
-| 5 | 헤더 / 필터 | BoardHeader, FilterBar | 예정 |
+| 5 | 헤더 / 필터 | BoardHeader, FilterBar | ✅ 완료 |
 | 6 | 컨테이너 | BoardContainer, `app/(board)/page.tsx` | 예정 (Phase 3~5 완료 후) |
 
 ---
@@ -342,49 +342,55 @@ tests). `npx tsc --noEmit`, `npm run lint`, `npm run build` 모두 통과.
 
 ---
 
-### Phase 5 — 헤더 / 필터
+### Phase 5 — 헤더 / 필터 ✅
 
 #### 5.1 BoardHeader
 
 **파일**: `src/client/components/board/BoardHeader.tsx`
-**스펙**: SearchInput(2차, 비활성 placeholder), CreateTicketButton(클릭
-시 `onCreateClick`).
+**스펙**: "Tika" 타이틀, SearchInput(2차, 비활성 placeholder),
+CreateTicketButton(클릭 시 `onCreateClick`).
 
-**TDD 체크리스트**:
-- [ ] Red: "새 업무" 버튼 클릭 시 `onCreateClick` 호출 테스트
-- [ ] Red: SearchInput이 `disabled` 상태로 렌더되는 테스트 (2차 구현
+**TDD 체크리스트** (4 tests):
+- [x] Red: "Tika" 타이틀이 렌더되는 테스트
+- [x] Red: "새 업무" 버튼 클릭 시 `onCreateClick` 호출 테스트
+- [x] Red: SearchInput이 placeholder("검색 (준비 중)")와 함께 렌더되는
+      테스트
+- [x] Red: SearchInput이 `disabled` 상태로 렌더되는 테스트 (2차 구현
       명시)
-- [ ] Green: 최소 구현 (Button 재사용)
-- [ ] Refactor: 없음
+- [x] Green: 최소 구현 (Button 재사용)
+- [x] Refactor: 없음
 
 #### 5.2 FilterBar
 
 **파일**: `src/client/components/board/FilterBar.tsx`
 **스펙**: activeFilter, onFilterChange, counts({thisWeek, overdue}), 토글
-동작(활성 필터 재클릭 시 해제), 필터 로직은 순수 함수로 분리(`isThisWeek`
-등 — COMPONENT_SPEC.md 예시 코드 그대로 구현).
+동작(활성 필터 재클릭 시 해제), 활성 필터 스타일(`aria-pressed`).
 
-**TDD 체크리스트**:
-- [ ] Red: "이번주 업무" 버튼 클릭 시 `onFilterChange('thisWeek')` 호출
+**TDD 체크리스트** (6 tests):
+- [x] Red: `counts.thisWeek`, `counts.overdue`가 버튼에 숫자로 노출되는
+      테스트 (각 필터 1개씩 2 tests)
+- [x] Red: "이번주 업무" 버튼 클릭 시 `onFilterChange('thisWeek')` 호출
       테스트
-- [ ] Red: "일정 초과" 버튼 클릭 시 `onFilterChange('overdue')` 호출
+- [x] Red: "일정 초과" 버튼 클릭 시 `onFilterChange('overdue')` 호출
       테스트
-- [ ] Red: `activeFilter='thisWeek'`일 때 "이번주 업무" 버튼을 다시
+- [x] Red: `activeFilter='thisWeek'`일 때 "이번주 업무" 버튼을 다시
       클릭하면 `onFilterChange('all')` 호출(토글 해제) 테스트
-- [ ] Red: `counts.thisWeek`, `counts.overdue`가 버튼에 숫자로 노출되는
-      테스트
-- [ ] Red(순수 함수): `isThisWeek()` — 이번 주 월~일 범위 dueDate를 가진
-      TODO/IN_PROGRESS 티켓만 true, BACKLOG/DONE은 항상 false인 테스트
-      (월요일/일요일 경계값 포함)
-- [ ] Red(순수 함수): `isOverdueFilter()` (또는 단순히 `ticket.isOverdue`
-      직접 사용 — 서버가 이미 계산해 내려주므로 별도 함수 불필요할 수
-      있음, 구현 시 결정)
-- [ ] Green: 최소 구현
-- [ ] Refactor: 필터 로직 함수를 `src/client/components/board/filters.ts`
-      등으로 분리해 단위 테스트 용이성 확보
+- [x] Red: 활성 필터 버튼에 `aria-pressed="true"`, 비활성 필터에
+      `aria-pressed="false"`가 적용되는 테스트
+- [x] Green: Button 재사용, `activeFilter === filter`면 primary
+      variant + `aria-pressed`, 아니면 secondary
+- [x] Refactor: 토글 판정(`activeFilter === filter ? 'all' : filter`)을
+      `handleClick` 헬퍼로 통합
 
-**Phase 5 완료 기준**: 두 컴포넌트 테스트 전부 통과. `/preview` Phase 5
-섹션에서 필터 토글 동작을 목 데이터로 육안 확인.
+**참고**: `isThisWeek()`/`isOverdueFilter()` 같은 필터링 순수 함수는 이번
+범위에 포함하지 않았다 — FilterBar 자체는 `counts`를 props로만 받아
+표시하고 토글만 담당하며, 실제로 board를 필터링하는 로직은 Phase 6
+BoardContainer(또는 그 하위 훅)에서 구현한다.
+
+**Phase 5 완료 기준**: ✅ 두 컴포넌트 테스트 전부 통과 (BoardHeader 4 +
+FilterBar 6 = 10 tests). `npx tsc --noEmit`, `npm run lint`, `npm run
+build` 모두 통과. `/preview` Phase 5 섹션에서 "새 업무" 클릭 시 Phase 3
+생성 모달이 열리는 것, FilterBar 토글 동작을 목 데이터로 육안 확인.
 
 ---
 

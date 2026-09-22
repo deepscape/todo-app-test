@@ -22,6 +22,8 @@ import { TicketModal } from '@/client/components/ticket/TicketModal';
 import { ColumnHeader } from '@/client/components/board/ColumnHeader';
 import { Column } from '@/client/components/board/Column';
 import { Board } from '@/client/components/board/Board';
+import { BoardHeader } from '@/client/components/board/BoardHeader';
+import { FilterBar, type BoardFilter } from '@/client/components/board/FilterBar';
 import type { BoardData, TicketWithMeta } from '@/shared/types';
 
 // TicketCard는 useSortable을 쓰므로 DndContext+SortableContext 없이는
@@ -142,6 +144,7 @@ export default function PreviewPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedBoardTicket, setSelectedBoardTicket] =
     useState<TicketWithMeta | null>(null);
+  const [activeFilter, setActiveFilter] = useState<BoardFilter>('all');
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-8">
@@ -392,10 +395,18 @@ export default function PreviewPage() {
       {/* Phase 5 — 헤더 / 필터 (BoardHeader, FilterBar) */}
       <PreviewSection title="Phase 5: 헤더 / 필터">
         <ComponentGroup name="BoardHeader">
-          <EmptyPlaceholder note="src/client/components/board/BoardHeader.tsx 구현 후 여기에 렌더링" />
+          <div className="w-full rounded-card border border-neutral-border bg-card-bg">
+            <BoardHeader onCreateClick={() => setIsCreateModalOpen(true)} />
+          </div>
         </ComponentGroup>
-        <ComponentGroup name="FilterBar">
-          <EmptyPlaceholder note="src/client/components/board/FilterBar.tsx 구현 후 여기에 렌더링" />
+        <ComponentGroup name="FilterBar — 클릭해서 토글 확인">
+          <div className="w-full rounded-card border border-neutral-border bg-card-bg">
+            <FilterBar
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+              counts={{ thisWeek: 3, overdue: 1 }}
+            />
+          </div>
         </ComponentGroup>
       </PreviewSection>
 
