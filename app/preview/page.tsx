@@ -129,14 +129,6 @@ function ComponentGroup({
   );
 }
 
-function EmptyPlaceholder({ note }: { note: string }) {
-  return (
-    <p className="text-sm text-text-muted">
-      아직 구현되지 않음 — {note}
-    </p>
-  );
-}
-
 export default function PreviewPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -413,7 +405,11 @@ export default function PreviewPage() {
       {/* Phase 6 — 컨테이너 (BoardContainer) */}
       <PreviewSection title="Phase 6: 컨테이너">
         <ComponentGroup name="BoardContainer">
-          <EmptyPlaceholder note="src/client/components/board/BoardContainer.tsx 구현 후 여기에 렌더링" />
+          <p className="text-sm text-text-muted">
+            구현 완료 — 실제 DB(useTickets → ticketApi → API Route)와
+            통신하는 컴포넌트라 목 데이터 프리뷰 대상이 아니다. 실제 동작
+            확인은 <code>npm run dev</code> 후 루트(<code>/</code>)에서.
+          </p>
         </ComponentGroup>
       </PreviewSection>
     </main>

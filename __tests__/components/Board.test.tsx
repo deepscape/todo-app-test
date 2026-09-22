@@ -17,10 +17,17 @@ import userEvent from '@testing-library/user-event';
 import type { BoardData, TicketWithMeta } from '@/shared/types';
 import { Board } from '../../src/client/components/board/Board';
 
+let capturedDndProps: { onDragStart?: (e: unknown) => void; onDragEnd?: (e: unknown) => void } = {};
+
 jest.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+  DndContext: (props: {
+    children: React.ReactNode;
+    onDragStart?: (e: unknown) => void;
+    onDragEnd?: (e: unknown) => void;
+  }) => {
+    capturedDndProps = props;
+    return <>{props.children}</>;
+  },
   DragOverlay: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
@@ -130,5 +137,42 @@ describe('Board', () => {
     expect(screen.getByText('할일 티켓')).toBeInTheDocument();
     expect(screen.getByText('진행중 티켓')).toBeInTheDocument();
     expect(screen.getByText('완료 티켓')).toBeInTheDocument();
+  });
+
+  it('onDragStart/onDragEnd가 DndContext에 그대로 전달된다', () => {
+    const handleDragStart = jest.fn();
+    const handleDragEnd = jest.fn();
+
+    render(
+      <Board
+        board={makeBoard()}
+        onTicketClick={jest.fn()}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      />
+    );
+
+    capturedDndProps.onDragStart?.({ active: { id: 1 } });
+    capturedDndProps.onDragEnd?.({ active: { id: 1 }, over: { id: 'TODO' } });
+
+    expect(handleDragStart).toHaveBeenCalledWith({ active: { id: 1 } });
+    expect(handleDragEnd).toHaveBeenCalledWith({
+      active: { id: 1 },
+      over: { id: 'TODO' },
+    });
+  });
+
+  it('activeTicket이 있으면 DragOverlay 안에 해당 TicketCard가 렌더된다', () => {
+    const activeTicket = makeTicket({ id: 9, title: '드래그 중 티켓' });
+
+    render(
+      <Board
+        board={makeBoard()}
+        onTicketClick={jest.fn()}
+        activeTicket={activeTicket}
+      />
+    );
+
+    expect(screen.getByText('드래그 중 티켓')).toBeInTheDocument();
   });
 });

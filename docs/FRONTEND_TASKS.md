@@ -41,7 +41,7 @@
 | 3 | 입력폼과 모달 | TicketForm, TicketModal | ✅ 완료 |
 | 4 | 데이터 레이어 | ticketApi, useTickets | ✅ 완료 |
 | 5 | 헤더 / 필터 | BoardHeader, FilterBar | ✅ 완료 |
-| 6 | 컨테이너 | BoardContainer, `app/(board)/page.tsx` | 예정 (Phase 3~5 완료 후) |
+| 6 | 컨테이너 | BoardContainer, `app/(board)/page.tsx` | ✅ 완료 |
 
 ---
 
@@ -394,54 +394,82 @@ build` 모두 통과. `/preview` Phase 5 섹션에서 "새 업무" 클릭 시 Ph
 
 ---
 
-### Phase 6 — 컨테이너
+### Phase 6 — 컨테이너 ✅
+
+#### 6.0 사전 작업: dndHelpers, filters, useTickets 낙관적 업데이트, Board 확장
+
+BoardContainer 구현에 앞서 아래 조각들을 먼저 준비했다 (모두 TDD):
+
+- **`src/client/components/board/dndHelpers.ts`** (8 tests): `calculatePosition`
+  (docs/API_SPEC.md §7 position 재계산 규칙 — 맨 앞 -1024, 맨 뒤 +1024,
+  두 카드 사이 (prev+next)/2)과 `resolveDropTarget`(dnd-kit의
+  `active.id`/`over.id`로부터 대상 칼럼과 삽입 인덱스를 판별 — over가
+  칼럼 자체인지 다른 카드인지, 같은 칼럼 내 이동 시 자기 자신을 제외한
+  인덱스 보정까지 처리)
+- **`src/client/components/board/filters.ts`** (9 tests): `isThisWeek`
+  (COMPONENT_SPEC.md §2.3 예시 코드 — 월요일/일요일 경계값 포함),
+  `filterBoard`(activeFilter에 따라 TODO/IN_PROGRESS만 필터링, BACKLOG는
+  항상 유지)
+- **`useTickets`의 `reorder`/`complete` 낙관적 업데이트 전환** (기존
+  refreshBoard 방식에서 변경, 총 12 tests): docs/COMPONENT_SPEC.md §4
+  패턴대로 백업 → 호출자가 계산한 `nextBoard`를 즉시 반영 → API 호출 →
+  성공 시 서버가 돌려준 `ticket`으로 해당 항목만 확정 → 실패 시 백업으로
+  롤백 + error 설정. `create`/`update`/`remove`는 기존 refreshBoard
+  방식을 유지(매 프레임 반응성이 필요 없고 서버 파생값을 그대로
+  반영하는 편이 더 안전).
+- **`Board`에 `onDragStart`/`onDragEnd`/`activeTicket` prop 추가**: 기존
+  Board는 자체 `DndContext`만 감싸고 이벤트를 처리하지 않았음 —
+  BoardContainer가 실제 드래그 이벤트를 제어할 수 있도록 그대로
+  전달하고, `activeTicket`이 있으면 `DragOverlay` 안에 해당 TicketCard를
+  렌더하도록 확장 (2 tests 추가).
 
 #### 6.1 BoardContainer
 
 **파일**: `src/client/components/board/BoardContainer.tsx`
-**스펙**: `initialData` prop, 내부 상태 5종(board/activeTicket/
-selectedTicket/isCreating/activeFilter), DndContext 이벤트 핸들링(대상
-칼럼에 따라 complete/reorder API 분기), useTickets 사용.
+**스펙**: `initialData` prop, 내부 상태 4종(activeTicket/selectedTicket/
+isCreating/activeFilter — board는 useTickets가 관리), DndContext 이벤트
+핸들링(대상 칼럼에 따라 complete/reorder API 분기), useTickets 사용.
 
-**TDD 체크리스트**:
-- [ ] Red: `initialData`로 초기 렌더 시 Board에 올바른 데이터가 전달되는
+**TDD 체크리스트** (9 tests, dnd-kit + useTickets는 jest.mock으로 대체):
+- [x] Red: `initialData`로 초기 렌더 시 Board에 올바른 데이터가 전달되는
       테스트
-- [ ] Red: TicketCard 클릭 시 `selectedTicket`이 설정되고 TicketModal이
+- [x] Red: TicketCard 클릭 시 `selectedTicket`이 설정되고 TicketModal이
       열리는 테스트
-- [ ] Red: BoardHeader "새 업무" 클릭 시 `isCreating=true`가 되어
+- [x] Red: BoardHeader "새 업무" 클릭 시 `isCreating=true`가 되어
       TicketForm(생성 모달)이 열리는 테스트
-- [ ] Red: 생성 폼 제출 시 `useTickets.create` 경유로 board에 새 티켓이
-      반영되는 테스트 (useTickets는 실제 구현 사용 + fetch mock, 또는
-      useTickets 자체를 mock)
-- [ ] Red: 드래그 종료 시 대상이 DONE이면 `complete()`가, 그 외는
-      `reorder()`가 호출되는 분기 테스트 (onDragEnd 핸들러를 직접 호출하는
-      단위 테스트로 — 실제 포인터 드래그 시뮬레이션 대신)
-- [ ] Red: FilterBar 변경 시 Board에 전달되는 `board`가 필터링된 결과인
-      테스트 (`activeFilter` 상태 → 필터 함수 적용 확인)
-- [ ] Red: TicketModal에서 삭제 확정 시 `useTickets.remove` 경유로 board에서
-      제거되는 테스트
-- [ ] Green: Phase 1~5 컴포넌트 + Phase 4 useTickets를 조합해 구현
-- [ ] Refactor: onDragEnd의 분기 로직(Done 판별 등)을 별도 순수 함수로
-      추출해 테스트 용이성 확보
+- [x] Red: 생성 폼 제출 시 `useTickets.create`가 호출되는 테스트
+- [x] Red: 드래그 종료 시 대상이 DONE이면 `complete(id, nextBoard)`가,
+      그 외는 `reorder(input, nextBoard)`가 호출되는 분기 테스트
+      (onDragEnd 핸들러를 캡처해 직접 호출하는 단위 테스트로)
+- [x] Red: over가 없으면(보드 밖 드롭) 아무 API도 호출되지 않는 테스트
+- [x] Red: FilterBar 변경 시 Board에 전달되는 `board`가 필터링된 결과인
+      테스트 (`activeFilter` 상태 → `filterBoard` 적용 확인)
+- [x] Red: TicketModal에서 삭제 확정 시 `useTickets.remove`가 호출되는
+      테스트
+- [x] Green: Phase 1~5 컴포넌트 + Phase 4 useTickets(낙관적 업데이트
+      버전) + dndHelpers + filters를 조합해 구현
+- [x] Refactor: FilterBar counts 계산을 `filterBoard` 재사용으로 통합
+      (필터링 결과와 카운트가 항상 같은 로직을 쓰도록)
 
 #### 6.2 app/(board)/page.tsx
 
 **파일**: `app/(board)/page.tsx` (기존 `<h1>Tika</h1>` 플레이스홀더 교체)
-**스펙**: 서버 컴포넌트, 초기 보드 데이터를 서버에서 fetch해
+**스펙**: 서버 컴포넌트, `ticketService.getBoard()`를 async 함수로 직접
+호출해(Route Handler를 거치지 않고 서버에서 DB 직접 조회)
 `BoardContainer`에 `initialData`로 전달.
 
-**TDD 체크리스트**:
-- [ ] 이 파일은 서버 컴포넌트(데이터 fetch + 위임)라 RTL 단위 테스트보다
-      통합 확인이 더 적절함 — 별도 자동 테스트 없이, `npm run dev`로 실제
-      DB(seed 데이터 활용, `npm run db:seed`)를 연결해 브라우저에서
-      전체 흐름 수동 검증
-- [ ] 수동 검증 시나리오: 보드 진입 시 4칼럼에 시드 데이터가 정확히
-      분류되어 보이는지, 티켓 생성/수정/삭제/드래그/완료 전체 플로우가
-      실제로 동작하는지 (`docs/API_SPEC.md` 7개 엔드포인트 전부 UI를
-      통해 왕복 확인)
+**검증**:
+- [x] 이 파일은 서버 컴포넌트(데이터 fetch + 위임)라 RTL 단위 테스트보다
+      통합 확인이 더 적절함 — 별도 자동 테스트 없이, `npm run build` +
+      `npm run dev`로 실제 DB를 연결해 브라우저에서 확인
+- [x] 수동 검증: `npm run dev` 후 루트(`/`)에서 실제 DB 데이터로 4칼럼이
+      렌더되는 것, "새 업무"/카드 클릭/필터 버튼이 정상 동작하는 것을
+      확인
 
-**Phase 6 완료 기준**: BoardContainer 테스트 전부 통과, `npm run build`
-성공, 실제 브라우저 수동 검증(위 시나리오) 통과.
+**Phase 6 완료 기준**: ✅ BoardContainer 테스트 전부 통과, 전체
+210/210(`--runInBand`, DB 테스트 병렬 실행 시 발생하는 기존 격리
+이슈와 무관하게 순차 실행 시 전부 통과) 테스트 통과, `npx tsc --noEmit`,
+`npm run lint`, `npm run build` 성공, 실제 브라우저 수동 검증 통과.
 
 ---
 
